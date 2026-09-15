@@ -42,6 +42,21 @@ def update_my_centre(
     db.refresh(hc)
     return hc
 
+@router.get("/filters")
+def get_filters(db: Session = Depends(get_db)):
+    types = [t[0] for t in db.query(HealthCentre.type).distinct().all() if t[0]]
+    districts = [d[0] for d in db.query(HealthCentre.district).distinct().all() if d[0]]
+    locations = [l[0] for l in db.query(HealthCentre.location).distinct().all() if l[0]]
+    statuses = [s[0] for s in db.query(HealthCentre.status).distinct().all() if s[0]]
+    
+    all_locations = list(set(districts + locations))
+    
+    return {
+        "types": sorted(types),
+        "districts": sorted(all_locations),
+        "statuses": sorted(statuses)
+    }
+
 @router.get("", response_model=list[HealthCentreResponse])
 def get_all_centres(
     response: Response,
@@ -79,29 +94,31 @@ def get_all_centres(
     if status and status != "All Statuses":
         query = query.filter(HealthCentre.status.ilike(status))
     
-    if min_score is not None:
-        query = query.filter(HealthCentre.health_score >= min_score)
-    if max_score is not None:
-        query = query.filter(HealthCentre.health_score <= max_score)
-        
-    total_count = query.count()
-    
-    if sort_by and hasattr(HealthCentre, sort_by):
-        column = getattr(HealthCentre, sort_by)
-        if sort_desc:
-            query = query.order_by(desc(column))
-        else:
-            query = query.order_by(asc(column))
-    else:
-        query = query.order_by(HealthCentre.id)
-        
-    centres = query.offset(skip).limit(limit).all()
+    # We will fetch all and do score filtering and sorting in memory
+    # because health_score is dynamically calculated.
+    centres = query.all()
     
     # Calculate live health score in batch
     centre_ids = [c.id for c in centres]
     scores = calculate_batch_health_scores(db, centre_ids)
+    
     for c in centres:
         c.health_score = int(scores.get(c.id, 0.0))
+        
+    if min_score is not None:
+        centres = [c for c in centres if c.health_score >= min_score]
+    if max_score is not None:
+        centres = [c for c in centres if c.health_score <= max_score]
+        
+    total_count = len(centres)
+    
+    if sort_by and hasattr(HealthCentre, sort_by):
+        reverse = bool(sort_desc)
+        centres.sort(key=lambda x: getattr(x, sort_by, getattr(x, 'id')), reverse=reverse)
+    else:
+        centres.sort(key=lambda x: x.id)
+        
+    centres = centres[skip: skip + limit]
     
     response.headers["X-Total-Count"] = str(total_count)
     # Allows frontend to read the custom header in CORS if applicable (assuming CORS config allows it or they are same-origin)

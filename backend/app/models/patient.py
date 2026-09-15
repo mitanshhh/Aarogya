@@ -24,6 +24,10 @@ class Patient(Base):
 
     # Relationships
     hospital = relationship("HealthCentre", back_populates="patients")
+    
+    @property
+    def hospital_name(self):
+        return self.hospital.name if self.hospital else None
     bed = relationship("Bed", back_populates="patient", uselist=False)
     audit_logs = relationship("PatientAuditLog", back_populates="patient", cascade="all, delete-orphan")
 

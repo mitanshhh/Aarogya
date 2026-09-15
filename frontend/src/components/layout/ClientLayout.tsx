@@ -5,12 +5,33 @@ import { Header } from "@/components/layout/Header";
 import { RouteGuard } from "@/components/layout/RouteGuard";
 import { FloatingChatbot } from "@/components/chat/FloatingChatbot";
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const pathname = usePathname();
+
+  const [sidebarWidth, setSidebarWidth] = useState(256); // Default w-64 is 256px
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      let newWidth = e.clientX;
+      if (newWidth < 200) newWidth = 200;
+      if (newWidth > 300) newWidth = 300;
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => setIsResizing(false);
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   if (pathname === '/login') {
     return <>{children}</>;
@@ -22,7 +43,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         isCollapsed={isCollapsed} 
         setIsCollapsed={setIsCollapsed} 
         isMobileOpen={isMobileOpen} 
-        setIsMobileOpen={setIsMobileOpen} 
+        setIsMobileOpen={setIsMobileOpen}
+        sidebarWidth={sidebarWidth}
+        setIsResizing={setIsResizing}
+        isResizing={isResizing}
       />
       
       {/* Mobile overlay */}
@@ -33,7 +57,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <div 
+        className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-0 md:[margin-left:var(--sidebar-width)]`}
+        style={{ '--sidebar-width': `${isCollapsed ? 80 : sidebarWidth}px` } as React.CSSProperties}
+      >
         <Header setIsMobileOpen={setIsMobileOpen} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative">
           <RouteGuard>

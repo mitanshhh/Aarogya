@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,9 +18,9 @@ export default function QRScanner({ doctorId, onScanSuccess }: QRScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [locating, setLocating] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
     let timer: NodeJS.Timeout;
     
     if (open && !result && scanning) {
@@ -29,12 +29,24 @@ export default function QRScanner({ doctorId, onScanSuccess }: QRScannerProps) {
         const element = document.getElementById("reader");
         if (element) {
           // Removed qrbox to allow scanning full uncropped screenshots!
-          scanner = new Html5QrcodeScanner("reader", { fps: 10 }, false);
+          const scanner = new Html5QrcodeScanner("reader", { fps: 10 }, false);
+          scannerRef.current = scanner;
           
           scanner.render((decodedText) => {
-            scanner?.clear();
-            setScanning(false);
-            handleScanSuccess(decodedText);
+            if (scannerRef.current) {
+              scannerRef.current.clear().then(() => {
+                scannerRef.current = null;
+                setScanning(false);
+                handleScanSuccess(decodedText);
+              }).catch(e => {
+                scannerRef.current = null;
+                setScanning(false);
+                handleScanSuccess(decodedText);
+              });
+            } else {
+              setScanning(false);
+              handleScanSuccess(decodedText);
+            }
           }, (error) => {
             // ignore continuous errors without letting them bubble up
             if (typeof error === 'string' && error.includes('NotFoundException')) return;
@@ -46,11 +58,12 @@ export default function QRScanner({ doctorId, onScanSuccess }: QRScannerProps) {
 
     return () => {
       if (timer) clearTimeout(timer);
-      if (scanner) {
-        scanner.clear().catch(e => console.error(e));
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(e => console.error(e));
+        scannerRef.current = null;
       }
     };
-  }, [open, scanning, result]);
+  }, [open, result]);
 
   const handleScanSuccess = async (qrToken: string) => {
     setLocating(true);
@@ -104,6 +117,17 @@ export default function QRScanner({ doctorId, onScanSuccess }: QRScannerProps) {
   };
 
   const handleOpen = (isOpen: boolean) => {
+    if (!isOpen && scannerRef.current) {
+      scannerRef.current.clear().then(() => {
+        scannerRef.current = null;
+        setOpen(false);
+      }).catch(e => {
+        scannerRef.current = null;
+        setOpen(false);
+      });
+      return;
+    }
+    
     setOpen(isOpen);
     if(isOpen) {
       setResult(null);

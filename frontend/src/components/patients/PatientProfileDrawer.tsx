@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { User, Clock, Phone, Calendar, Search, Edit2, Check, X, Pill, Bed, FileText, ChevronDown, ChevronUp, MoreVertical, Stethoscope } from "lucide-react";
+import { User, Clock, Phone, Calendar, Search, Edit2, Check, X, Pill, Bed, FileText, ChevronDown, ChevronUp, MoreVertical, Stethoscope, Download } from "lucide-react";
 import { apiFetch } from '@/lib/api';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface PatientProfileDrawerProps {
   patientCode: string | null;
@@ -112,6 +114,66 @@ export function PatientProfileDrawer({ patientCode, open, onOpenChange }: Patien
       toast.error("An error occurred while saving");
       console.error(e);
     }
+  };
+
+  const generatePDF = () => {
+    if (!patient) return;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Patient Medical History', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    
+    // Patient Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Personal Information', 14, 45);
+    
+    autoTable(doc, {
+      startY: 50,
+      head: [['Attribute', 'Details']],
+      body: [
+        ['Name', patient.name],
+        ['Patient ID', patient.patient_code],
+        ['Age', `${patient.age} years`],
+        ['Gender', patient.gender],
+        ['Contact', patient.contact || 'N/A'],
+        ['DOB', patient.dob ? new Date(patient.dob).toLocaleDateString('en-IN') : 'N/A'],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] }
+    });
+
+    // Medical History
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Activity & Medical History', 14, finalY);
+
+    const historyData = timeline.map(event => [
+      new Date(event.timestamp).toLocaleString('en-IN'),
+      event.title,
+      event.type.toUpperCase(),
+      event.description
+    ]);
+
+    autoTable(doc, {
+      startY: finalY + 5,
+      head: [['Date & Time', 'Event', 'Type', 'Description']],
+      body: historyData.length > 0 ? historyData : [['No history found', '', '', '']],
+      theme: 'striped',
+      headStyles: { fillColor: [52, 73, 94] },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 'auto' }
+      }
+    });
+
+    doc.save(`${patient.patient_code}_Medical_History.pdf`);
   };
 
   const toggleEventExpansion = (idx: number) => {
@@ -305,9 +367,14 @@ export function PatientProfileDrawer({ patientCode, open, onOpenChange }: Patien
                       <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {patient.contact || '—'}</span>
                       <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> DOB: {patient.dob ? new Date(patient.dob).toLocaleDateString('en-IN') : '—'}</span>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="h-7 text-xs cursor-pointer">
-                      <Edit2 className="w-3 h-3 mr-1.5" /> Edit Details
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="h-7 text-xs cursor-pointer">
+                        <Edit2 className="w-3 h-3 mr-1.5" /> Edit Details
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={generatePDF} className="h-7 text-xs cursor-pointer bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                        <Download className="w-3 h-3 mr-1.5" /> Download PDF
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 mt-4">

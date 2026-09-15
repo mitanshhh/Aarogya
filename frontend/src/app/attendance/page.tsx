@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import MODashboard from '@/components/attendance/MODashboard';
-import DoctorDashboard from '@/components/attendance/DoctorDashboard';
+import StaffDashboard from '@/components/attendance/StaffDashboard';
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export default function AttendancePage() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewAsDoctor, setViewAsDoctor] = useState(false);
+  const [viewAsStaff, setViewAsStaff] = useState(false);
   
   const searchParams = useSearchParams();
 
@@ -36,31 +36,28 @@ export default function AttendancePage() {
     );
   }
 
-  const isMO = role === 'MEDICAL_OFFICER' || role === 'DISTRICT_ADMIN';
+  const isManager = role === 'MEDICAL_OFFICER' || role === 'RECEPTIONIST' || role === 'DISTRICT_ADMIN';
   const isDev = role === 'DEVELOPER';
 
-  if (isDev) {
+  // For users who have both personal attendance and managerial view
+  if (isManager || isDev) {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex justify-end bg-muted/50 p-2 rounded-lg border border-border">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
             <input 
               type="checkbox" 
-              checked={viewAsDoctor} 
-              onChange={e => setViewAsDoctor(e.target.checked)}
+              checked={viewAsStaff} 
+              onChange={e => setViewAsStaff(e.target.checked)}
               className="rounded border-primary/50 text-primary focus:ring-primary"
             />
-            View as Doctor (Developer Toggle)
+            {isDev ? "View as Staff (Developer Toggle)" : "View My Attendance (Scan QR)"}
           </label>
         </div>
-        {viewAsDoctor ? <DoctorDashboard /> : <MODashboard />}
+        {viewAsStaff ? <StaffDashboard /> : <MODashboard />}
       </div>
     );
   }
 
-  if (isMO) {
-    return <MODashboard />;
-  }
-
-  return <DoctorDashboard />;
+  return <StaffDashboard />;
 }

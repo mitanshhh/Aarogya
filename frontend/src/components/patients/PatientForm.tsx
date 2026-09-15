@@ -28,7 +28,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
     remarks: ""
   });
   const [isChecking, setIsChecking] = useState(false);
-  const [checkStatus, setCheckStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [checkStatus, setCheckStatus] = useState<'idle' | 'found' | 'available' | 'error'>('idle');
 
   const handleCheckPatient = async () => {
     if (!formData.patient_code.trim()) {
@@ -42,10 +42,17 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
     try {
       const res = await apiFetch(`/api/v1/patients/code/${formData.patient_code.trim()}`);
 
-      if (!res.ok) throw new Error('Patient not found');
+      if (!res.ok) {
+        if (res.status === 404) {
+          setCheckStatus('available'); // Mark green so they know it's available
+          toast.success('ID is available for new registration.');
+          return;
+        }
+        throw new Error('Failed to fetch patient');
+      }
 
       const data = await res.json();
-      setCheckStatus('success');
+      setCheckStatus('found');
       toast.success('Patient found! Details autofilled.');
       setFormData(prev => ({
         ...prev,
@@ -59,7 +66,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
     } catch (err) {
       console.error(err);
       setCheckStatus('error');
-      toast.error('Patient not found. Please check the ID.');
+      toast.error('Network error or invalid ID.');
     } finally {
       setIsChecking(false);
     }
@@ -119,7 +126,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               Primary Details
             </h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2 col-span-2">
                 <label className="text-sm font-medium flex items-center justify-between">
                   <span>Patient ID / ABHA ID <span className="text-xs text-muted-foreground font-normal">(Optional — enter to autofill details)</span></span>
@@ -136,14 +143,14 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
                       }}
                       disabled={isChecking}
                       className={`pr-10 ${
-                        checkStatus === 'success'
+                        (checkStatus === 'found' || checkStatus === 'available')
                           ? 'border-green-500 focus-visible:ring-green-500'
                           : checkStatus === 'error'
                           ? 'border-red-500 focus-visible:ring-red-500'
                           : ''
                       }`}
                     />
-                    {checkStatus === 'success' && (
+                    {(checkStatus === 'found' || checkStatus === 'available') && (
                       <CheckCircle2 className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
                     )}
                     {checkStatus === 'error' && (
@@ -161,9 +168,14 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
                     Check
                   </Button>
                 </div>
-                {checkStatus === 'success' && (
+                {checkStatus === 'found' && (
                   <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
                     <CheckCircle2 className="w-3 h-3" /> Patient found — fields autofilled below.
+                  </p>
+                )}
+                {checkStatus === 'available' && (
+                  <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="w-3 h-3" /> ID is available for new registration.
                   </p>
                 )}
               </div>
@@ -211,11 +223,11 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               Visit Details
             </h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Visit Type <span className="text-red-500">*</span></label>
                 <Select required value={formData.visit_type} onValueChange={(val) => handleSelect("visit_type", val)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Visit Type" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="OPD">OPD</SelectItem>
                     <SelectItem value="Emergency">Emergency</SelectItem>
@@ -230,7 +242,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Department <span className="text-red-500">*</span></label>
                 <Select required value={formData.department} onValueChange={(val) => handleSelect("department", val)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="General Medicine">General Medicine</SelectItem>
                     <SelectItem value="Pediatrics">Pediatrics</SelectItem>
@@ -246,7 +258,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Priority <span className="text-red-500">*</span></label>
                 <Select required value={formData.priority} onValueChange={(val) => handleSelect("priority", val)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Priority" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Normal">Normal</SelectItem>
                     <SelectItem value="Urgent">Urgent</SelectItem>
@@ -258,7 +270,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Assign Doctor</label>
                 <Select value={formData.doctor_id} onValueChange={(val) => handleSelect("doctor_id", val)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Doctor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Auto-assign</SelectItem>
                     {doctors.map((doc: any) => (
@@ -284,11 +296,11 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
               Optional Clinical Data
             </h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Blood Group</label>
                 <Select value={formData.blood_group} onValueChange={(val) => handleSelect("blood_group", val)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Blood Group" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="A+">A+</SelectItem>
                     <SelectItem value="A-">A-</SelectItem>
@@ -306,7 +318,7 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Pregnancy Status</label>
                   <Select value={formData.pregnancy_status} onValueChange={(val) => handleSelect("pregnancy_status", val)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Not Pregnant</SelectItem>
                       <SelectItem value="Pregnant">Pregnant</SelectItem>
@@ -335,11 +347,11 @@ export function PatientForm({ onSubmit, onClose, doctors = [] }: any) {
         </form>
       </div>
 
-      <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/10">
-        <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-        <Button type="submit" form="patient-registration" className="bg-primary hover:bg-primary/90">
+      <div className="p-4 border-t border-border flex justify-start gap-3 bg-muted/10">
+        <Button type="submit" form="patient-registration" className="bg-primary hover:bg-primary/90 hover:scale-105 transition-all shadow-md">
           Register Patient
         </Button>
+        <Button variant="outline" type="button" onClick={onClose} className="hover:scale-105 transition-all shadow-sm">Cancel</Button>
       </div>
     </div>
   );

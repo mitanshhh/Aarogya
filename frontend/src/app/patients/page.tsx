@@ -349,7 +349,7 @@ export default function PatientsPage() {
       />
 
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent side="right" className="w-full md:w-[600px] sm:max-w-none p-0 border-l border-border bg-background">
+        <SheetContent side="right" className="w-full !max-w-[540px] p-0 border-l border-border bg-background">
           <PatientForm 
             onSubmit={handleRegisterPatient} 
             onClose={() => setIsFormOpen(false)}

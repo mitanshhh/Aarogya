@@ -39,13 +39,15 @@ class AttendanceRecord(Base):
     __tablename__ = "attendance_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     session_id = Column(Integer, ForeignKey("daily_qr_sessions.id"), nullable=False, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, nullable=False) # PRESENT/LATE
     scanned_via = Column(String, nullable=True)
 
     doctor = relationship("Doctor", back_populates="attendance_records")
+    user = relationship("User", back_populates="attendance_records")
     session = relationship("DailyQRSession", back_populates="records")
 
 class RandomAttendanceCheck(Base):

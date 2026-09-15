@@ -113,6 +113,11 @@ export default function HealthCentreManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const [page, setPage] = useState(0);
+  
+  // Dynamic filter options from DB
+  const [dbTypes, setDbTypes] = useState<string[]>(['PHC', 'CHC']);
+  const [dbDistricts, setDbDistricts] = useState<string[]>(['North District', 'South District', 'East District', 'West District', 'Central']);
+  const [dbStatuses, setDbStatuses] = useState<string[]>(['Active', 'Monitor', 'Review', 'Critical', 'Maintenance']);
 
   // Fetch centres with server-side pagination and filtering
   const fetchCentres = useCallback(async () => {
@@ -168,6 +173,25 @@ export default function HealthCentreManagement() {
     }, 300); // debounce search
     return () => clearTimeout(timer);
   }, [fetchCentres]);
+
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/phc/filters`, {
+          headers: { 'X-Role': 'DISTRICT_ADMIN' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.types?.length) setDbTypes(data.types);
+          if (data.districts?.length) setDbDistricts(data.districts);
+          if (data.statuses?.length) setDbStatuses(data.statuses);
+        }
+      } catch (e) {
+        console.error("Failed to load filter options", e);
+      }
+    };
+    fetchFilterOptions();
+  }, []);
 
   // Handle register
   const handleRegister = async (e: React.FormEvent) => {
@@ -447,8 +471,9 @@ export default function HealthCentreManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All Types">Type</SelectItem>
-                <SelectItem value="PHC">PHC</SelectItem>
-                <SelectItem value="CHC">CHC</SelectItem>
+                {dbTypes.map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -458,11 +483,9 @@ export default function HealthCentreManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All Districts">District</SelectItem>
-                <SelectItem value="North District">North District</SelectItem>
-                <SelectItem value="South District">South District</SelectItem>
-                <SelectItem value="East District">East District</SelectItem>
-                <SelectItem value="West District">West District</SelectItem>
-                <SelectItem value="Central">Central</SelectItem>
+                {dbDistricts.map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -472,11 +495,9 @@ export default function HealthCentreManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All Statuses">Status</SelectItem>
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Monitor">Monitor</SelectItem>
-                <SelectItem value="Review">Review</SelectItem>
-                <SelectItem value="Critical">Critical</SelectItem>
-                <SelectItem value="Maintenance">Maintenance</SelectItem>
+                {dbStatuses.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

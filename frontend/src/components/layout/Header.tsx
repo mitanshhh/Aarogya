@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Search, Bell, User, Menu, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ interface HeaderProps {
 export function Header({ setIsMobileOpen }: HeaderProps) {
   const { user, logout, token, selectedHospitalId, setSelectedHospitalId } = useAuth();
   const { locale, setLocale, t, isTranslating } = useLanguage();
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
@@ -116,7 +118,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
           </Button>
         )}
         
-        {(user?.role === 'DISTRICT_ADMIN' || user?.role === 'DEVELOPER') ? (
+        {(user?.role === 'DISTRICT_ADMIN' || user?.role === 'DEVELOPER') && !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') ? (
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5 px-1 hidden md:block">
               {t('header.viewingDataFor')}
@@ -162,7 +164,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        ) : (
+        ) : !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') && !pathname.startsWith('/forecasting') ? (
           <div className="hidden md:flex items-center bg-background/80 shadow-inner rounded-full px-4 py-2 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 w-96 transition-all duration-300">
             <Search className="w-4 h-4 text-primary mr-2" />
             <input 
@@ -171,7 +173,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
               type="text" 
             />
           </div>
-        )}
+        ) : null}
       </div>
       
       <div className="flex items-center gap-2 md:gap-3">
@@ -223,20 +225,20 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-80 rounded-2xl p-3 shadow-2xl border-border/50 bg-card/95 backdrop-blur-xl">
             <div className="flex flex-col space-y-2 p-4 bg-gradient-to-br from-primary/10 via-background to-background rounded-xl border border-primary/10 shadow-inner mb-2">
               <p className="text-xl font-bold leading-none text-foreground tracking-tight">{user?.username || "Guest"}</p>
-              <p className="text-sm leading-none text-muted-foreground font-medium">{user?.role || "UNKNOWN"}</p>
+              <p className="text-sm leading-none text-muted-foreground font-medium">{user?.email}</p>
             </div>
             
             <div className="p-3 space-y-4">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium">{t('header.role')}</span>
+                <span className="text-muted-foreground font-medium">Role:</span>
                 <span className="font-semibold text-foreground bg-primary/10 text-primary px-2.5 py-1 rounded-md text-xs uppercase tracking-wider">
                   {user?.role?.replace("_", " ") || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium">{t('header.primaryCentre')}</span>
-                <span className="font-semibold text-foreground">
-                  {user?.hospital_id ? `PHC ${user.hospital_id}` : t('header.systemWide')}
+                <span className="text-muted-foreground font-medium">PHC Name:</span>
+                <span className="font-semibold text-foreground truncate max-w-[200px]" title={user?.hospital_name || (user?.hospital_id ? `PHC ${user.hospital_id}` : 'System Wide')}>
+                  {user?.hospital_name ? user.hospital_name : (user?.hospital_id ? `PHC ${user.hospital_id}` : 'System Wide')}
                 </span>
               </div>
             </div>

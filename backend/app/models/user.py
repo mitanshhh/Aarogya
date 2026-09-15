@@ -28,6 +28,11 @@ class User(Base):
     # Relationships
     hospital = relationship("HealthCentre", back_populates="staff")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    attendance_records = relationship("AttendanceRecord", back_populates="user")
+
+    @property
+    def hospital_name(self):
+        return self.hospital.name if self.hospital else None
 
 
 class RefreshToken(Base):

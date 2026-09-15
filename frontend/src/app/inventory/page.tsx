@@ -40,6 +40,7 @@ import { PeriodOption, getPeriodRange, DateRange, formatExactTimestamp } from "@
 // Type definitions
 interface InventoryItem {
   id: number;
+  item_code?: string;
   name: string;
   total_qty: number;
   qty_sold: number;
@@ -120,6 +121,7 @@ export default function InventoryManagement() {
 
   // Form states
   const [formData, setFormData] = useState({
+    item_code: '',
     name: '',
     total_qty: 0,
     min_threshold: 0,
@@ -303,6 +305,23 @@ export default function InventoryManagement() {
   };
 
   // Handlers
+  const handleItemCodeLookup = async (code: string) => {
+    if (!code) return;
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/lookup?item_code=${code}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({
+          ...prev,
+          name: data.name || prev.name
+        }));
+        toast.success("Medicine details autofilled from ID!");
+      }
+    } catch (e) {
+      // Ignore if not found
+    }
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -314,6 +333,7 @@ export default function InventoryManagement() {
           'X-Role': 'DISTRICT_ADMIN'
         },
         body: JSON.stringify({
+          item_code: formData.item_code,
           name: formData.name,
           category: 'Medicine',
           quantity: formData.total_qty,
@@ -326,7 +346,7 @@ export default function InventoryManagement() {
       if (res.ok) {
         toast.success("Medicine added successfully!");
         setIsAddOpen(false);
-        setFormData({ name: '', total_qty: 0, min_threshold: 0, price: 0, status: 'Stable' });
+        setFormData({ item_code: '', name: '', total_qty: 0, min_threshold: 0, price: 0, status: 'Stable' });
         fetchAllData();
       } else {
         toast.error("Failed to add medicine");
@@ -348,6 +368,7 @@ export default function InventoryManagement() {
           'X-Role': 'DISTRICT_ADMIN'
         },
         body: JSON.stringify({
+          item_code: editFormData.item_code,
           name: editFormData.name,
           quantity: editFormData.total_qty,
           price: editFormData.price,
@@ -643,6 +664,10 @@ export default function InventoryManagement() {
               <form onSubmit={handleAdd}>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <label className="text-right text-sm font-medium">Item ID</label>
+                    <Input className="col-span-3 bg-card" placeholder="Enter code" value={formData.item_code} onChange={e => setFormData({...formData, item_code: e.target.value})} onBlur={e => handleItemCodeLookup(e.target.value)} required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <label className="text-right text-sm font-medium">Name</label>
                     <Input className="col-span-3 bg-card" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                   </div>
@@ -787,6 +812,9 @@ export default function InventoryManagement() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="font-medium text-foreground">{item.name}</span>
+                            {item.item_code && (
+                              <span className="text-xs text-muted-foreground font-mono">ID: {item.item_code}</span>
+                            )}
                             {item.forecast_days && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full w-fit">
                                 <Bot className="w-3 h-3" />
@@ -1094,6 +1122,10 @@ export default function InventoryManagement() {
           </DialogHeader>
           <form onSubmit={handleEdit}>
             <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label className="text-right text-sm font-medium">Item ID</label>
+                <Input className="col-span-3 bg-card" value={editFormData.item_code || ''} onChange={e => setEditFormData({...editFormData, item_code: e.target.value})} required />
+              </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label className="text-right text-sm font-medium">Name</label>
                 <Input className="col-span-3 bg-card" value={editFormData.name || ''} onChange={e => setEditFormData({...editFormData, name: e.target.value})} required />

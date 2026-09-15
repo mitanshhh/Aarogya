@@ -21,6 +21,7 @@ export interface User {
   email: string;
   role: BackendRole;
   hospital_id: number | null;
+  hospital_name?: string;
 }
 
 interface AuthContextType {
@@ -49,17 +50,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser  = localStorage.getItem("user");
     const storedHospId = localStorage.getItem("selectedHospitalId");
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser) as User);
-        if (storedHospId) setSelectedHospitalIdState(parseInt(storedHospId, 10));
-      } catch {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user");
+    const initializeAuth = async () => {
+      if (storedToken && storedUser) {
+        try {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser) as User);
+          if (storedHospId) setSelectedHospitalIdState(parseInt(storedHospId, 10));
+          
+          // Refresh user data from API to get latest properties (like hospital_name)
+          const me = await apiGetMe();
+          const mappedUser: User = {
+            id:          me.id,
+            username:    me.username,
+            email:       me.email,
+            role:        me.role as BackendRole,
+            hospital_id: me.hospital_id,
+            hospital_name: me.hospital_name,
+          };
+          setUser(mappedUser);
+          localStorage.setItem("user", JSON.stringify(mappedUser));
+        } catch (error) {
+          console.error("Failed to refresh session", error);
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   // ── Route protection ───────────────────────────────────────────────────────
@@ -85,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email:       me.email,
       role:        me.role as BackendRole,
       hospital_id: me.hospital_id,
+      hospital_name: me.hospital_name,
     };
 
     localStorage.setItem("user", JSON.stringify(mappedUser));
@@ -100,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     const rt = localStorage.getItem("refresh_token") || "";
-    await apiLogout(rt);
+    apiLogout(rt).catch(() => {}); // Fire and forget
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");

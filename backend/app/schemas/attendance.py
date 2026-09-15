@@ -13,7 +13,8 @@ class DailyQRSessionResponse(BaseModel):
 
 class AttendanceRecordResponse(BaseModel):
     id: int
-    doctor_id: int
+    doctor_id: Optional[int] = None
+    user_id: Optional[int] = None
     timestamp: datetime
     status: str
     scanned_via: Optional[str] = None
@@ -24,7 +25,6 @@ class QRScanRequest(BaseModel):
     qr_token: str
     lat: float
     lng: float
-    doctor_id: int
 
 class QRGenerateRequest(BaseModel):
     lat: Optional[float] = None

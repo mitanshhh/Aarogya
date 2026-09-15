@@ -11,12 +11,12 @@ import QRScanner from './QRScanner';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function DoctorDashboard() {
+export default function StaffDashboard() {
   const { selectedHospitalId } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [docId, setDocId] = useState<number | null>(null);
+  const [staffId, setStaffId] = useState<number | null>(null);
 
   const fetchData = async () => {
     try {
@@ -24,14 +24,14 @@ export default function DoctorDashboard() {
       
       const hospitalQueryParam = selectedHospitalId ? `?hospital_id=${selectedHospitalId}` : '';
       const role = localStorage.getItem("role") || "DOCTOR";
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/attendance/doctor/me${hospitalQueryParam}`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/attendance/me${hospitalQueryParam}`, {
         headers: { 'X-Role': role }
       });
       if (res.ok) {
         const dashboardData = await res.json();
         setData(dashboardData);
-        if (dashboardData?.doctor?.id) {
-          setDocId(dashboardData.doctor.id);
+        if (dashboardData?.staff?.id) {
+          setStaffId(dashboardData.staff.id);
         }
       } else {
         if (res.status === 404) {
@@ -52,10 +52,10 @@ export default function DoctorDashboard() {
   }, [selectedHospitalId]);
 
   const handleLinkCalendar = () => {
-    if (docId) {
-      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/calendar/auth?doctor_id=${docId}`;
+    if (staffId) {
+      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/calendar/auth?doctor_id=${staffId}`;
     } else {
-      toast.error("Doctor ID not found.");
+      toast.error("Staff ID not found.");
     }
   };
 
@@ -86,25 +86,25 @@ export default function DoctorDashboard() {
     return (
       <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
         <AlertCircle className="w-16 h-16 text-muted-foreground opacity-50" />
-        <h2 className="text-2xl font-bold text-foreground">No Data Available</h2>
+        <h2 className="text-2xl font-bold text-foreground">No Dashboard Data</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          There are no doctors or attendance records found for your PHC yet. Please ensure doctors are registered in the system.
+          We could not find your staff profile. Please ensure you are registered in the system.
         </p>
       </div>
     );
   }
 
-  const { doctor, stats, history } = data;
+  const { staff, stats, history } = data;
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Welcome, {doctor.name}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{doctor.specialization} • Your Personal Attendance Dashboard</p>
+          <h2 className="text-2xl font-semibold text-foreground">Welcome, {staff.name}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{staff.role} • Your Personal Attendance Dashboard</p>
         </div>
         <div className="flex gap-3">
-          {docId && <QRScanner doctorId={docId} onScanSuccess={fetchData} />}
+          {staffId && <QRScanner doctorId={staffId} onScanSuccess={fetchData} />}
         </div>
       </div>
 
@@ -176,32 +176,34 @@ export default function DoctorDashboard() {
 
         {/* Right Col: Google Calendar & Chart */}
         <div className="space-y-6">
-          <Card className="border-border shadow-sm bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-background">
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center p-2">
-                  <svg viewBox="0 0 48 48" className="w-full h-full"><path fill="#4285F4" d="M34,44H14c-5.5,0-10-4.5-10-10V14c0-5.5,4.5-10,10-10h20c5.5,0,10,4.5,10,10v20C44,39.5,39.5,44,34,44z"/><path fill="#34A853" d="M34,14H14c-1.1,0-2,0.9-2,2v20c0,1.1,0.9,2,2,2h20c1.1,0,2-0.9,2-2V16C36,14.9,35.1,14,34,14z"/><path fill="#FBBC05" d="M17,21h14v-2H17V21z M17,29h14v-2H17V29z M17,37h8v-2h-8V37z"/></svg>
+          {staff.role === 'DOCTOR' && (
+            <Card className="border-border shadow-sm bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-background">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center p-2">
+                    <svg viewBox="0 0 48 48" className="w-full h-full"><path fill="#4285F4" d="M34,44H14c-5.5,0-10-4.5-10-10V14c0-5.5,4.5-10,10-10h20c5.5,0,10,4.5,10,10v20C44,39.5,39.5,44,34,44z"/><path fill="#34A853" d="M34,14H14c-1.1,0-2,0.9-2,2v20c0,1.1,0.9,2,2,2h20c1.1,0,2-0.9,2-2V16C36,14.9,35.1,14,34,14z"/><path fill="#FBBC05" d="M17,21h14v-2H17V21z M17,29h14v-2H17V29z M17,37h8v-2h-8V37z"/></svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Google Calendar Integration</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {staff.calendar_linked 
+                        ? "Your calendar is linked. The system automatically fetches your availability to mark 'On Leave' status appropriately."
+                        : "Link your Google Calendar to automatically update your Leave status."}
+                    </p>
+                  </div>
+                  {!staff.calendar_linked ? (
+                    <Button onClick={handleLinkCalendar} className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
+                      Link Calendar Account
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <CheckCircle className="w-3 h-3 mr-1" /> Linked Successfully
+                    </Badge>
+                  )}
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Google Calendar Integration</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {doctor.calendar_linked 
-                      ? "Your calendar is linked. The system automatically fetches your availability to mark 'On Leave' status appropriately."
-                      : "Link your Google Calendar to automatically update your Leave status."}
-                  </p>
-                </div>
-                {!doctor.calendar_linked ? (
-                  <Button onClick={handleLinkCalendar} className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer">
-                    Link Calendar Account
-                  </Button>
-                ) : (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle className="w-3 h-3 mr-1" /> Linked Successfully
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-border shadow-sm">
             <CardHeader className="pb-2">

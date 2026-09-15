@@ -29,6 +29,7 @@ class PatientUpdate(BaseModel):
 class PatientResponse(PatientBase):
     id: int
     hospital_id: int
+    hospital_name: Optional[str] = None
     patient_code: Optional[str] = None
     status: str
     admitted_at: datetime

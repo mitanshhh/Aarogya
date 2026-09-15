@@ -13,7 +13,7 @@ import {
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
-import { Users, Clock, UserX, UserMinus, Search, Filter, MapPin, QrCode, Calendar as CalendarIcon, Activity } from 'lucide-react';
+import { Users, Clock, UserX, UserMinus, Search, Filter, MapPin, QrCode, Calendar as CalendarIcon, Activity, RefreshCw } from 'lucide-react';
 import QRGenerator from './QRGenerator';
 import { toast } from 'sonner';
 
@@ -76,11 +76,24 @@ export default function MODashboard() {
       return;
     }
     fetchData();
+    
+    // Live fetching every 15 seconds
+    const interval = setInterval(() => {
+      fetchData();
+    }, 15000);
+    
+    return () => clearInterval(interval);
   }, [filterStatus, selectedHospitalId, page, filterDate]);
 
   const filteredRecords = records.filter(r => 
     r.doctor_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => {
+    // Sort so newest check-ins (latest timestamp) are at the top
+    if (!a.timestamp && !b.timestamp) return 0;
+    if (!a.timestamp) return 1;
+    if (!b.timestamp) return -1;
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -97,7 +110,7 @@ export default function MODashboard() {
       <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Doctor Attendance</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Staff Attendance</h2>
             <p className="text-sm text-muted-foreground mt-1">Real-time monitoring of clinical staff presence and availability.</p>
           </div>
         </div>
@@ -116,10 +129,14 @@ export default function MODashboard() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Doctor Attendance</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Staff Attendance</h2>
           <p className="text-sm text-muted-foreground mt-1">Real-time monitoring of clinical staff presence and availability.</p>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" onClick={fetchData} className="flex items-center gap-2 cursor-pointer shadow-sm">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <QRGenerator key={selectedHospitalId} />
         </div>
       </div>
@@ -195,7 +212,7 @@ export default function MODashboard() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search doctors..."
+              placeholder="Search staff..."
               className="pl-9 h-9 w-full bg-background"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -207,7 +224,7 @@ export default function MODashboard() {
           <Table>
             <TableHeader className="bg-muted/10">
               <TableRow>
-                <TableHead>Doctor</TableHead>
+                <TableHead>Staff</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Check-in</TableHead>
                 <TableHead>GPS</TableHead>
@@ -324,22 +341,6 @@ export default function MODashboard() {
                                   <span className="font-semibold bg-secondary px-2.5 py-1 rounded-md">{record.calendar_status}</span>
                                 ) : (
                                   <span className="text-xs text-muted-foreground italic">Not linked</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* AI Insights Block */}
-                            <div className="space-y-3 pb-8">
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-2">
-                                <Activity className="w-3.5 h-3.5"/> AI Attendance Insights
-                              </h4>
-                              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/50 p-4 rounded-xl shadow-sm text-sm text-indigo-900 dark:text-indigo-200">
-                                {record.status === 'Late' ? (
-                                  <p className="leading-relaxed"><strong>Anomaly Detected:</strong> Doctor arrived late today. Average arrival this month is 12 minutes late. 4 total late arrivals this month.</p>
-                                ) : record.status === 'Present' ? (
-                                  <p className="leading-relaxed"><strong>Consistent:</strong> No attendance anomalies detected. Doctor is maintaining a 96% monthly attendance rate.</p>
-                                ) : (
-                                  <p className="leading-relaxed"><strong>Flagged:</strong> Doctor is absent today, but the integrated Google Calendar shows no planned leave.</p>
                                 )}
                               </div>
                             </div>

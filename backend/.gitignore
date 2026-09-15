@@ -9,3 +9,7 @@ env/
 .pytest_cache/
 static/reports/*
 !static/reports/.gitkeep
+
+# Ignore DB seed/test scripts
+reset_attendance.py
+update_patient_phones*.py

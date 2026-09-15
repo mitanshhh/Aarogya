@@ -10,9 +10,10 @@
 
 export const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/district-admin": ["DISTRICT_ADMIN", "DEVELOPER"],
-  "/health-centre":  ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
+  "/health-centre":  ["DISTRICT_ADMIN", "DEVELOPER"],
   "/inventory":      ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "PHARMACIST", "DEVELOPER"],
-  "/attendance":     ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DOCTOR", "DEVELOPER"],
+  "/forecasting":    ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
+  "/attendance":     ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DOCTOR", "RECEPTIONIST", "PHARMACIST", "DATA_ENTRY", "LAB_TECHNICIAN", "DEVELOPER"],
   "/patients":       ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "DOCTOR", "DEVELOPER"],
   "/beds":           ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "DEVELOPER"],
   "/analytics":      ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
@@ -28,7 +29,7 @@ export const ROLE_HOME: Record<string, string> = {
   DATA_ENTRY:      "/inventory",
   RECEPTIONIST:    "/patients",
   PHARMACIST:      "/inventory",
-  DOCTOR:          "/patients",
+  DOCTOR:          "/attendance",
   DEVELOPER:       "/district-admin",
 };
 

@@ -21,6 +21,7 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: int
     created_at: datetime
+    hospital_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

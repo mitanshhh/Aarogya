@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import date, datetime
 
 class InventoryItemBase(BaseModel):
+    item_code: Optional[str] = None
     name: str
     category: str
     quantity: int = 0
@@ -17,6 +18,7 @@ class InventoryItemCreate(InventoryItemBase):
     hospital_id: Optional[int] = None
 
 class InventoryItemUpdate(BaseModel):
+    item_code: Optional[str] = None
     name: Optional[str] = None
     category: Optional[str] = None
     quantity: Optional[int] = None

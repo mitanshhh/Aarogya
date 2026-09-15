@@ -59,6 +59,21 @@ def get_inventory(
     
     return PaginatedResponse(data=items, total=total, limit=limit, offset=offset)
 
+@router.get("/lookup")
+def lookup_inventory_item(
+    item_code: str,
+    db: Session = Depends(get_db)
+):
+    item = db.query(InventoryItem).filter(InventoryItem.item_code == item_code).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {
+        "item_code": item.item_code,
+        "name": item.name,
+        "category": item.category,
+        "unit": item.unit
+    }
+
 @router.post("", response_model=InventoryItemResponse)
 def add_inventory_item(
     item_in: InventoryItemCreate,
@@ -184,18 +199,27 @@ async def upload_csv(
     for _, row in df.iterrows():
         # Sanitize
         name = sanitize_csv_value(row.get('name'))
+        item_code = sanitize_csv_value(row.get('item_code')) if 'item_code' in df.columns and pd.notna(row.get('item_code')) else None
         cat = sanitize_csv_value(row.get('category')) if 'category' in df.columns and pd.notna(row.get('category')) else "Medicine"
         unit = sanitize_csv_value(row.get('unit')) if 'unit' in df.columns and pd.notna(row.get('unit')) else "unit"
         qty = int(row.get('quantity', 0))
         min_t = int(row.get('min_threshold', 0)) if 'min_threshold' in df.columns else 0
         price = int(row.get('price', row.get('price_of_1_unit', 0))) if ('price' in df.columns or 'price_of_1_unit' in df.columns) else 0
         
-        # Check if item exists with same name and price
-        existing_item = db.query(InventoryItem).filter(
-            InventoryItem.hospital_id == hospital_id,
-            func.lower(InventoryItem.name) == name.lower(),
-            InventoryItem.price == price
-        ).first()
+        # Check if item exists with same item_code, or fallback to name and price
+        existing_item = None
+        if item_code:
+            existing_item = db.query(InventoryItem).filter(
+                InventoryItem.hospital_id == hospital_id,
+                InventoryItem.item_code == item_code
+            ).first()
+            
+        if not existing_item:
+            existing_item = db.query(InventoryItem).filter(
+                InventoryItem.hospital_id == hospital_id,
+                func.lower(InventoryItem.name) == name.lower(),
+                InventoryItem.price == price
+            ).first()
 
         if existing_item:
             existing_item.quantity += qty
@@ -215,6 +239,7 @@ async def upload_csv(
             item = InventoryItem(
                 hospital_id=hospital_id,
                 name=name,
+                item_code=item_code,
                 category=cat,
                 quantity=qty,
                 unit=unit,

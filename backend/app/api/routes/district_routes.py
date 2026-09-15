@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.db.database import get_db
 from app.models.district import ResourceRequest
@@ -8,6 +8,8 @@ from app.models.health_centre import HealthCentre
 from app.models.user import User, UserRole
 from app.models.notification import Notification
 from app.schemas.district import ResourceRequestResponse, ResourceRequestCreate, ResourceRequestUpdate
+from app.schemas.patient import PatientResponse
+from app.schemas.common import PaginatedResponse
 from app.api.dependencies import get_current_user, require_role, resolve_hospital_id
 
 router = APIRouter()
@@ -155,3 +157,34 @@ def update_resource_request(
     db.commit()
     db.refresh(req)
     return req
+
+@router.get("/patients/search", response_model=PaginatedResponse[PatientResponse])
+def search_patients_globally(
+    q: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
+):
+    from sqlalchemy import or_
+    from app.models.patient import Patient
+    
+    query = db.query(Patient)
+    if q and q.strip():
+        query = query.filter(
+            or_(
+                Patient.name.ilike(f"%{q}%"),
+                Patient.patient_code.ilike(f"%{q}%")
+            )
+        )
+    
+    query = query.order_by(Patient.name.asc())
+    total = query.count()
+    patients = query.offset(offset).limit(limit).all()
+    
+    return PaginatedResponse(
+        data=patients,
+        total=total,
+        limit=limit,
+        offset=offset
+    )

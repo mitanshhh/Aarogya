@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Hospital, Package, Stethoscope, BedDouble, LineChart, FileText, ChevronLeft, ChevronRight, Users, Building2 } from 'lucide-react';
+import { LayoutDashboard, Hospital, Package, Stethoscope, BedDouble, LineChart, FileText, ChevronLeft, ChevronRight, Users, Building2, Sparkles, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -13,20 +13,24 @@ interface SidebarProps {
   setIsCollapsed?: (val: boolean) => void;
   isMobileOpen?: boolean;
   setIsMobileOpen?: (val: boolean) => void;
+  sidebarWidth?: number;
+  setIsResizing?: (val: boolean) => void;
+  isResizing?: boolean;
 }
 
-export function Sidebar({ isCollapsed = false, setIsCollapsed, isMobileOpen = false, setIsMobileOpen }: SidebarProps) {
+export function Sidebar({ isCollapsed = false, setIsCollapsed, isMobileOpen = false, setIsMobileOpen, sidebarWidth = 256, setIsResizing, isResizing }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const role = user?.role || "DEVELOPER";
+  const role = user?.role;
 
   // Nav item definitions — roles are derived from the centralized ROUTE_PERMISSIONS map
   const allNavItems = [
     { name: t('nav.dashboard'),      href: '/district-admin', icon: LayoutDashboard },
     { name: t('nav.healthCentres'),   href: '/health-centre',  icon: Hospital },
     { name: t('nav.inventory'),       href: '/inventory',      icon: Package },
-    { name: t('nav.doctors'),         href: '/attendance',     icon: Stethoscope },
+    { name: "Forecasting",            href: '/forecasting',    icon: Activity },
+    { name: "Attendance",             href: '/attendance',     icon: role === 'DOCTOR' ? LayoutDashboard : Stethoscope },
     { name: t('nav.patients'),        href: '/patients',       icon: Users },
     { name: t('nav.beds'),            href: '/beds',           icon: BedDouble },
     { name: t('nav.analytics'),       href: '/analytics',      icon: LineChart },
@@ -35,16 +39,49 @@ export function Sidebar({ isCollapsed = false, setIsCollapsed, isMobileOpen = fa
 
   // Filter nav items using the centralized permissions map — DEVELOPER sees everything
   const navItems = allNavItems.filter(item => {
+    if (!role) return false;
     if (role === 'DEVELOPER') return true;
     const allowed = ROUTE_PERMISSIONS[item.href];
     return allowed ? allowed.includes(role) : false;
   });
 
+  if (!user) {
+    return (
+      <nav 
+        className={`bg-card/80 backdrop-blur-xl border-r border-border h-screen fixed left-0 top-0 overflow-y-auto flex flex-col py-6 gap-2 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-0
+          md:[width:var(--sidebar-width)] w-64 ${isCollapsed ? 'md:!w-20' : ''} 
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`
+        }
+        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+      >
+        <div className={`px-4 mb-6 mt-2 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Aarogya Logo" className="w-8 h-8 object-contain shrink-0 opacity-50" />
+            {!isCollapsed && <h1 className="text-2xl font-bold text-foreground/50 tracking-tight">Aarogya</h1>}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
-    <nav className={`bg-card/80 backdrop-blur-xl border-r border-border h-screen fixed left-0 top-0 overflow-y-auto flex flex-col py-6 gap-2 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300
-      ${isCollapsed ? 'w-20' : 'w-64'} 
-      ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`
-    }>
+    <nav 
+      className={`bg-card/80 backdrop-blur-xl border-r border-border h-screen fixed left-0 top-0 overflow-y-auto flex flex-col py-6 gap-2 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-0
+        md:[width:var(--sidebar-width)] w-64 ${isCollapsed ? 'md:!w-20' : ''} 
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`
+      }
+      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+    >
+      {/* Resizer Handle */}
+      {!isCollapsed && setIsResizing && (
+        <div 
+          className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-50 transition-colors ${isResizing ? 'bg-primary' : 'hover:bg-primary/50'}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+        />
+      )}
       <div className={`px-4 mb-6 mt-2 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         <div className="flex items-center gap-2.5">
           <img src="/logo.png" alt="Aarogya Logo" className="w-8 h-8 object-contain shrink-0" />

@@ -120,8 +120,33 @@ def register_patient(
     db.add(new_patient)
     db.flush()
 
+    import re
+    import random
+    
+    def generate_abdm_id_for_db(name: str) -> str:
+        import string
+        clean_name = re.sub(r'[^a-zA-Z0-9]', '', name.lower())
+        if len(clean_name) < 2:
+            clean_name += str(random.randint(10, 99))
+        
+        counter = 1
+        while True:
+            suffix = f"_{counter}"
+            max_name_len = 13 - len(suffix)
+            base = clean_name[:max_name_len]
+            abdm_id = f"{base}{suffix}@abdm"
+            
+            if not db.query(Patient).filter(Patient.patient_code == abdm_id).first():
+                return abdm_id
+            counter += 1
+
     if not new_patient.patient_code:
-        new_patient.patient_code = f"PT-{str(new_patient.id).zfill(4)}"
+        new_patient.patient_code = generate_abdm_id_for_db(new_patient.name)
+    else:
+        # Validate format if provided
+        code = new_patient.patient_code
+        if not re.match(r'^[a-zA-Z0-9._]{3,13}@abdm$', code):
+            new_patient.patient_code = generate_abdm_id_for_db(new_patient.name)
         
     db.commit()
     db.refresh(new_patient)

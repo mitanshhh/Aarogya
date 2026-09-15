@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function ManageRolesPage() {
   const { user } = useAuth();
+  const canEdit = user?.role !== 'DISTRICT_ADMIN';
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -147,9 +148,11 @@ export default function ManageRolesPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage staff and system access for your PHC.</p>
         </div>
-        <Button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-300">
-          <Plus className="w-4 h-4" /> Add New User
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-300">
+            <Plus className="w-4 h-4" /> Add New User
+          </Button>
+        )}
       </div>
 
       <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
@@ -177,7 +180,7 @@ export default function ManageRolesPage() {
                 <TableHead className="w-[250px]">Name & Username</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {canEdit && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,14 +201,16 @@ export default function ManageRolesPage() {
                         {u.role.replace('_', ' ').toLowerCase()}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEditModal(u)} className="h-8 w-8 hover:text-blue-500">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(u.id)} className="h-8 w-8 hover:text-red-500 hover:bg-red-500/10" disabled={u.id === user?.id}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(u)} className="h-8 w-8 hover:text-blue-500">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(u.id)} className="h-8 w-8 hover:text-red-500 hover:bg-red-500/10" disabled={u.id === user?.id}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

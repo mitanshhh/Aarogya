@@ -105,6 +105,24 @@ def enforce_check_expirations():
     finally:
         db.close()
 
+def run_weekly_ml_forecasting():
+    from app.api.routes.ml_routes import calculate_and_save_forecast
+    from app.models.health_centre import HealthCentre
+    db: Session = SessionLocal()
+    try:
+        print("Starting scheduled weekly ML forecasting...")
+        hospitals = db.query(HealthCentre).all()
+        for h in hospitals:
+            try:
+                calculate_and_save_forecast(h.id, db)
+            except Exception as e:
+                print(f"Failed to forecast for hospital {h.id}: {e}")
+        print("Completed weekly ML forecasting.")
+    except Exception as e:
+        print(f"Error in weekly ML forecasting: {e}")
+    finally:
+        db.close()
+
 def start_scheduler():
     if not scheduler.running:
         # Add the minute-by-minute expiration cron
@@ -113,6 +131,17 @@ def start_scheduler():
             "interval",
             minutes=1,
             id="enforce_expirations",
+            replace_existing=True
+        )
+        
+        # Add the weekly ML forecasting cron (runs every Sunday at 00:00)
+        scheduler.add_job(
+            run_weekly_ml_forecasting,
+            "cron",
+            day_of_week="sun",
+            hour=0,
+            minute=0,
+            id="weekly_ml_forecasting",
             replace_existing=True
         )
         scheduler.start()

@@ -37,7 +37,7 @@ def get_users(
 def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
 ):
     # Auto-assign hospital_id if creating as MEDICAL_OFFICER
     if current_user.role == UserRole.MEDICAL_OFFICER:
@@ -77,7 +77,7 @@ def update_user(
     user_id: int,
     user_in: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
 ):
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
@@ -104,7 +104,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.DEVELOPER]))
 ):
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
