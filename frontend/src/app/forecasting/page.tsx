@@ -242,7 +242,7 @@ export default function ForecastingPage() {
                     <Tooltip 
                       contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', fontSize: '12px', padding: '8px' }}
                       labelFormatter={(val) => new Date(val).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric'})}
-                      formatter={(val: number | undefined) => [val != null ? Math.ceil(val) : 0, "Units"]}
+                      formatter={(val) => [typeof val === 'number' ? Math.ceil(val) : val, "Units"]}
                     />
                     <Bar 
                       dataKey="predicted_demand" 
