@@ -171,11 +171,13 @@ def create_centre(
             )
             email_sent = delivery.sent
             email_detail = delivery.detail
-            if email_sent:
-                db.commit()
-                admin_user_created = True
-            else:
-                db.rollback()
+            
+            # Always commit the user even if email fails (useful on Render free tier where SMTP is blocked)
+            db.commit()
+            admin_user_created = True
+            
+            if not email_sent:
+                email_detail += f" The account was still created. Give them this password manually: {password}"
 
     response = HealthCentreCreateResponse.model_validate(hc).model_dump()
     response.update({
