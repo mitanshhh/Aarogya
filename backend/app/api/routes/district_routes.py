@@ -75,11 +75,12 @@ def get_district_overview(
             critical_centres += 1
     
     # Doctor presence rate (today)
+    from sqlalchemy import func
     today = datetime.now().date()
-    present_docs = db.query(AttendanceRecord).join(DailyQRSession).filter(
+    present_docs = db.query(func.count(func.distinct(AttendanceRecord.user_id))).join(DailyQRSession).filter(
         DailyQRSession.date == today,
         AttendanceRecord.status.in_(["PRESENT", "LATE"])
-    ).count()
+    ).scalar() or 0
     
     total_docs = db.query(User).filter(User.role == UserRole.DOCTOR).count()
     doctor_presence_rate = round((present_docs / total_docs * 100), 1) if total_docs > 0 else 0
