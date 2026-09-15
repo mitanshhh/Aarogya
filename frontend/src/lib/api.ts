@@ -151,6 +151,7 @@ export interface ApiUser {
   email: string;
   role: string;
   hospital_id: number | null;
+  hospital_name?: string;
   created_at: string;
 }
 
