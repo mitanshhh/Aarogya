@@ -94,9 +94,11 @@ export default function InventoryManagement() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [forecasts, setForecasts] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [forecastLoading, setForecastLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -142,24 +144,37 @@ export default function InventoryManagement() {
       
       const fetchOpts: RequestInit = { headers, cache: 'no-store' };
       
-      const [itemsRes, logsRes, requestsRes] = await Promise.all([
+      const [itemsRes, logsRes, requestsRes, forecastsRes] = await Promise.all([
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/?limit=100${hospitalQuery}`, fetchOpts),
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/logs?limit=50${hospitalQuery}`, fetchOpts),
-        apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/requests?limit=100${hospitalQuery}`, fetchOpts)
+        apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/requests?limit=100${hospitalQuery}`, fetchOpts),
+        selectedHospitalId ? apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/forecast/${selectedHospitalId}`, fetchOpts) : Promise.resolve({ ok: false })
       ]);
 
       if (itemsRes.ok) {
         const itemsData = await itemsRes.json();
         const logsData = logsRes.ok ? await logsRes.json() : { data: [] };
         
-        const mappedItems = (itemsData.data || []).map((item: any) => ({
-          ...item,
-          backend_qty: item.quantity || 0,
-          total_qty: item.quantity || 0,
-          qty_sold: 0,
-          price: item.price || 0,
-          status: item.status || 'Stable'
-        }));
+        const forecastsData = forecastsRes.ok ? await forecastsRes.json() : [];
+        setForecasts(forecastsData);
+        
+        const mappedItems = (itemsData.data || []).map((item: any) => {
+          const forecast = forecastsData.find((f: any) => f.item_id === item.id);
+          let forecastDays = undefined;
+          if (forecast && forecast.projected_stockout_date) {
+             const diff = new Date(forecast.projected_stockout_date).getTime() - new Date().getTime();
+             forecastDays = Math.max(0, Math.ceil(diff / (1000 * 3600 * 24))).toString();
+          }
+          return {
+            ...item,
+            backend_qty: item.quantity || 0,
+            total_qty: item.quantity || 0,
+            qty_sold: 0,
+            price: item.price || 0,
+            status: item.status || 'Stable',
+            forecast_days: forecastDays
+          };
+        });
         
         setItems(mappedItems);
         setLogs(logsData.data || []);
@@ -278,6 +293,27 @@ export default function InventoryManagement() {
       toast.error("Network error: Could not reach AI service");
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const generateForecast = async () => {
+    try {
+      setForecastLoading(true);
+      const hospitalQuery = selectedHospitalId ? `?hospital_id=${selectedHospitalId}` : '';
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/forecast/trigger${hospitalQuery}`, {
+        method: 'POST',
+        headers: { 'X-Role': 'DISTRICT_ADMIN' }
+      });
+      if (res.ok) {
+        toast.success("Forecast generated successfully!");
+        fetchAllData();
+      } else {
+        toast.error("Failed to generate forecast");
+      }
+    } catch (error) {
+      toast.error("Network error: Could not reach forecasting service");
+    } finally {
+      setForecastLoading(false);
     }
   };
 
@@ -536,7 +572,7 @@ export default function InventoryManagement() {
     })
   ];
 
-  // Add proactive alerts for high moving stock
+  // Add proactive alerts for high moving stock and forecasts
   if (analytics?.fastest_moving) {
     analytics.fastest_moving.forEach(fast => {
       if (!localRequests.some(r => r.item_name === fast.name) && fast.sold > 0) {
@@ -548,6 +584,18 @@ export default function InventoryManagement() {
       }
     });
   }
+
+  items.forEach(item => {
+    if (item.forecast_days && parseInt(item.forecast_days) <= 14) {
+      if (!localRequests.some(r => r.item_name === item.name)) {
+        localRequests.push({
+          item_name: item.name,
+          draft_message: `AI Forecast Alert: Our demand forecasting model predicts that ${item.name} will run out of stock in ${item.forecast_days} days. Please consider restocking soon.`,
+          alert_type: 'proactive'
+        });
+      }
+    }
+  });
 
   // Billing Handlers
   const addToBill = (item: InventoryItem) => {
@@ -948,13 +996,22 @@ export default function InventoryManagement() {
                   AI Forecast
                 </span>
               </CardTitle>
-              <Button onClick={generateAIAnalysis} disabled={aiLoading} className="shadow-sm cursor-pointer">
-                {aiLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing Stock...</>
-                ) : (
-                  <><Sparkles className="w-4 h-4 mr-2" /> Generate AI Insights</>
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={generateForecast} disabled={forecastLoading} variant="outline" className="shadow-sm cursor-pointer border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                  {forecastLoading ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Running...</>
+                  ) : (
+                    <><Bot className="w-4 h-4 mr-2" /> Run Forecast Now</>
+                  )}
+                </Button>
+                <Button onClick={generateAIAnalysis} disabled={aiLoading} className="shadow-sm cursor-pointer">
+                  {aiLoading ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing Stock...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4 mr-2" /> Generate AI Insights</>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-6">

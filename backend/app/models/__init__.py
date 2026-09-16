@@ -9,12 +9,14 @@ from app.models.district import ResourceRequest, District
 from app.models.report import Report
 from app.models.notification import Notification
 from app.models.nation import Nation
+from app.models.forecast import MedicineForecast
 
 # This file imports all models so Alembic can discover them
 __all__ = [
     "Base",
     "Nation",
     "District",
+    "MedicineForecast",
     "User",
     "RefreshToken",
     "HealthCentre",
