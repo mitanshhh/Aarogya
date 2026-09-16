@@ -1,0 +1,69 @@
+# =============================================================
+# Root-level .gitignore for Aarogya monorepo
+# =============================================================
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Database files (never commit)
+*.db
+*.sqlite3
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Secrets / creds
+*.pem
+*.key
+
+# =============================================================
+# Backend — seed & test scripts (kept locally for future use)
+# =============================================================
+backend/Testing/
+backend/tests/
+backend/seed_*.py
+backend/migrate.py
+backend/scripts/
+backend/.pytest_cache/
+backend/aarogya.db
+
+# Federation aggregator venv (sub-project inside backend)
+backend/federation-aggregator/venv/
+backend/federation-aggregator/.venv/
+backend/federation-aggregator/__pycache__/
+
+# ML model artifacts (large binaries, not for git)
+backend/ml_models/
+
+# =============================================================
+# Frontend
+# =============================================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/coverage/
+
+# =============================================================
+# Old root-level federation-aggregator (now in backend/)
+# =============================================================
+federation-aggregator/

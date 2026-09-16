@@ -24,6 +24,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
     hospital_id = Column(Integer, ForeignKey("health_centres.id"), nullable=True, index=True)
+    nation_id = Column(Integer, ForeignKey("nations.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

@@ -1,15 +1,52 @@
+# Python bytecode
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pyo
+
+# Virtual environments
 .env
 .venv/
 venv/
 env/
+
+# Test infrastructure (kept locally, not for production)
+Testing/
+tests/
+pytest.ini
+conftest.py
 .pytest_cache/
+
+# Seed / one-off migration scripts (kept locally for future use)
+seed_*.py
+migrate.py
+scripts/
+
+# Database files (never commit)
+*.db
+*.sqlite3
+
+# ML model artifacts (large binaries)
+ml_models/
+
+# Static generated reports (keep folder structure, not files)
 static/reports/*
 !static/reports/.gitkeep
 
-# Ignore DB seed/test scripts
-reset_attendance.py
-update_patient_phones*.py
+# Build artifacts
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Federation aggregator venv (sub-project)
+federation-aggregator/venv/
+federation-aggregator/.venv/
+federation-aggregator/__pycache__/

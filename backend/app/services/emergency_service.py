@@ -4,7 +4,7 @@ from app.services.health_score import calculate_health_score
 
 def get_resilience_index(db: Session, nation_id: int = 1) -> float:
     # 1. Get all PHCs in nation
-    hcs = db.query(HealthCentre).join(District).filter(District.nation_id == nation_id).all()
+    hcs = db.query(HealthCentre).join(District, HealthCentre.district == District.name).filter(District.nation_id == nation_id).all()
     if not hcs:
         return 0.0
         

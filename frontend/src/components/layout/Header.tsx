@@ -51,7 +51,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
   };
 
   const fetchHospitals = async () => {
-    if (!token || (user?.role !== 'DISTRICT_ADMIN' && user?.role !== 'DEVELOPER')) return;
+    if (!token || (user?.role !== 'DISTRICT_ADMIN' && user?.role !== 'DEVELOPER' && user?.role !== 'NATION_ADMIN')) return;
     try {
       const res = await apiFetch(`${API_BASE_URL}/api/v1/phc`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -118,7 +118,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
           </Button>
         )}
         
-        {(user?.role === 'DISTRICT_ADMIN' || user?.role === 'DEVELOPER') && !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') ? (
+        {(user?.role === 'DISTRICT_ADMIN' || user?.role === 'DEVELOPER' || user?.role === 'NATION_ADMIN') && !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') && !pathname.startsWith('/federation') && !pathname.startsWith('/redistribution') ? (
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5 px-1 hidden md:block">
               {t('header.viewingDataFor')}
@@ -164,7 +164,7 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        ) : !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') && !pathname.startsWith('/forecasting') ? (
+        ) : !pathname.startsWith('/district-admin') && !pathname.startsWith('/health-centre') && !pathname.startsWith('/forecasting') && !pathname.startsWith('/federation') && !pathname.startsWith('/redistribution') ? (
           <div className="hidden md:flex items-center bg-background/80 shadow-inner rounded-full px-4 py-2 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 w-96 transition-all duration-300">
             <Search className="w-4 h-4 text-primary mr-2" />
             <input 

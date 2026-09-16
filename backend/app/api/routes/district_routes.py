@@ -19,7 +19,10 @@ def get_map_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
 ):
-    centres = db.query(HealthCentre).all()
+    query = db.query(HealthCentre)
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    centres = query.all()
     return [
         {
             "id": c.id,
@@ -54,19 +57,34 @@ def get_district_overview(
     from app.services.health_score import calculate_batch_health_scores
     from datetime import datetime
     
-    phcs = db.query(HealthCentre).filter(HealthCentre.type == "PHC").count()
-    chcs = db.query(HealthCentre).filter(HealthCentre.type == "CHC").count()
+    phcs_query = db.query(HealthCentre).filter(HealthCentre.type == "PHC")
+    chcs_query = db.query(HealthCentre).filter(HealthCentre.type == "CHC")
+    beds_query = db.query(Bed).join(HealthCentre, Bed.hospital_id == HealthCentre.id)
+    items_query = db.query(InventoryItem).join(HealthCentre, InventoryItem.hospital_id == HealthCentre.id)
+    all_centres_query = db.query(HealthCentre)
+    docs_query = db.query(User).filter(User.role == UserRole.DOCTOR).outerjoin(HealthCentre, User.hospital_id == HealthCentre.id)
+    
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        phcs_query = phcs_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        chcs_query = chcs_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        beds_query = beds_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        items_query = items_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        all_centres_query = all_centres_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        docs_query = docs_query.filter(HealthCentre.nation_id == current_user.nation_id)
+    
+    phcs = phcs_query.count()
+    chcs = chcs_query.count()
     
     # Bed Occupancy
-    total_beds = db.query(Bed).count()
-    occupied_beds = db.query(Bed).filter(Bed.status == "Occupied").count()
+    total_beds = beds_query.count()
+    occupied_beds = beds_query.filter(Bed.status == "Occupied").count()
     bed_occupancy_rate = round((occupied_beds / total_beds * 100), 1) if total_beds > 0 else 0
     
     # Medicine alerts: items where quantity is at or below threshold
-    medicine_alerts = db.query(InventoryItem).filter(InventoryItem.quantity <= InventoryItem.min_threshold).count()
+    medicine_alerts = items_query.filter(InventoryItem.quantity <= InventoryItem.min_threshold).count()
     
     # Critical centres: status == 'Critical' or health_score < 50 or 0 available beds
-    all_centres = db.query(HealthCentre).all()
+    all_centres = all_centres_query.all()
     scores = calculate_batch_health_scores(db, [c.id for c in all_centres])
     critical_centres = 0
     for c in all_centres:
@@ -77,12 +95,23 @@ def get_district_overview(
     # Doctor presence rate (today)
     from sqlalchemy import func
     today = datetime.now().date()
-    present_docs = db.query(func.count(func.distinct(AttendanceRecord.user_id))).join(DailyQRSession).filter(
+    present_docs_query = db.query(func.count(func.distinct(AttendanceRecord.user_id))).join(
+        DailyQRSession, AttendanceRecord.session_id == DailyQRSession.id
+    ).join(
+        User, AttendanceRecord.user_id == User.id
+    ).outerjoin(
+        HealthCentre, User.hospital_id == HealthCentre.id
+    ).filter(
         DailyQRSession.date == today,
         AttendanceRecord.status.in_(["PRESENT", "LATE"])
-    ).scalar() or 0
+    )
     
-    total_docs = db.query(User).filter(User.role == UserRole.DOCTOR).count()
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        present_docs_query = present_docs_query.filter(HealthCentre.nation_id == current_user.nation_id)
+        
+    present_docs = present_docs_query.scalar() or 0
+    
+    total_docs = docs_query.count()
     doctor_presence_rate = round((present_docs / total_docs * 100), 1) if total_docs > 0 else 0
     
     result = {
@@ -103,7 +132,10 @@ def get_all_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
 ):
-    return db.query(ResourceRequest).all()
+    query = db.query(ResourceRequest).join(HealthCentre, ResourceRequest.requesting_phc_id == HealthCentre.id)
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    return query.all()
 
 @router.post("/resource-request", response_model=ResourceRequestResponse)
 def create_resource_request(
@@ -170,7 +202,11 @@ def search_patients_globally(
     from sqlalchemy import or_
     from app.models.patient import Patient
     
-    query = db.query(Patient)
+    query = db.query(Patient).join(HealthCentre, Patient.hospital_id == HealthCentre.id)
+    
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+        
     if q and q.strip():
         query = query.filter(
             or_(

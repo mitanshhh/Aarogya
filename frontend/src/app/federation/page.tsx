@@ -80,13 +80,6 @@ export default function FederationDashboard() {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">Cross-nation predictive modelling & real-time resource visibility.</p>
         </div>
-        <Button 
-          variant={isEmergency ? "outline" : "destructive"} 
-          onClick={toggleEmergency}
-          className={isEmergency ? "border-red-500 text-red-600 hover:bg-red-50" : "animate-pulse"}
-        >
-          {isEmergency ? "Deactivate Emergency Protocol" : "Declare Emergency"}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -145,6 +138,7 @@ export default function FederationDashboard() {
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead>Category</TableHead>
+                <TableHead>Global Contributors</TableHead>
                 <TableHead>Local MAE</TableHead>
                 <TableHead>Global MAE</TableHead>
                 <TableHead>Improvement</TableHead>
@@ -154,14 +148,29 @@ export default function FederationDashboard() {
             <TableBody>
               {models.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     No federated models synced yet.
                   </TableCell>
                 </TableRow>
               ) : (
-                models.map((m: any) => (
+                models.map((m: any) => {
+                  const aggCat = agg.categories?.find((c: any) => c.category === m.category);
+                  const contributors = aggCat?.contributors || [];
+                  
+                  return (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.category}</TableCell>
+                    <TableCell>
+                      {contributors.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {contributors.map((c: string, i: number) => (
+                            <Badge key={i} variant="outline" className="w-max text-xs">{c}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">None</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{m.local_mae?.toFixed(4) || '-'}</TableCell>
                     <TableCell className="font-mono text-xs text-indigo-600">{m.global_mae?.toFixed(4) || '-'}</TableCell>
                     <TableCell>
@@ -177,7 +186,7 @@ export default function FederationDashboard() {
                       {new Date(m.created_at).toLocaleString()}
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               )}
             </TableBody>
           </Table>

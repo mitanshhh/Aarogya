@@ -21,9 +21,9 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 def generate_redistribution_plan(db: Session, district_id: int = None, nation_id: int = None) -> List[Dict[str, Any]]:
     # 1. Fetch all health centres
-    hc_query = db.query(HealthCentre).join(District)
+    hc_query = db.query(HealthCentre).join(District, HealthCentre.district == District.name)
     if district_id:
-        hc_query = hc_query.filter(HealthCentre.district_id == district_id)
+        hc_query = hc_query.filter(District.id == district_id)
     elif nation_id:
         hc_query = hc_query.filter(District.nation_id == nation_id)
         
@@ -78,11 +78,11 @@ def generate_redistribution_plan(db: Session, district_id: int = None, nation_id
                 if surplus["amount_available"] <= 0:
                     continue
                 source_hc = health_centres[surplus["hospital_id"]]
-                dist = haversine_distance(target_hc.lat, target_hc.lng, source_hc.lat, source_hc.lng)
+                dist = haversine_distance(target_hc.latitude, target_hc.longitude, source_hc.latitude, source_hc.longitude)
                 
                 # If doing cross-district, prefer within same district if possible by artificially lowering distance
-                if target_hc.district_id == source_hc.district_id:
-                    dist *= 0.1  # 90% discount for same district
+                if target_hc.district == source_hc.district:
+                    dist = dist * 0.51  # 90% discount for same district
                 
                 if dist < best_dist:
                     best_dist = dist
@@ -101,8 +101,8 @@ def generate_redistribution_plan(db: Session, district_id: int = None, nation_id
                     "to_hospital_id": target_hc.id,
                     "to_hospital_name": target_hc.name,
                     "quantity": transfer_amt,
-                    "distance_km": round(best_dist if best_dist < 500 else haversine_distance(target_hc.lat, target_hc.lng, source_hc.lat, source_hc.lng), 2),
-                    "is_cross_district": target_hc.district_id != source_hc.district_id
+                    "distance_km": round(best_dist if best_dist < 500 else haversine_distance(target_hc.latitude, target_hc.longitude, source_hc.latitude, source_hc.longitude), 2),
+                    "is_cross_district": target_hc.district != source_hc.district
                 })
                 
                 surpluses[best_surplus_idx]["amount_available"] -= transfer_amt

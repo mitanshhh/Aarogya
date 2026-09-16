@@ -36,7 +36,8 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
 
     def __call__(self, current_user: User = Depends(get_current_user)):
-        if current_user.role == UserRole.DEVELOPER:
+        print(f"DEBUG RoleChecker: user_role={current_user.role} type={type(current_user.role)}")
+        if current_user.role in [UserRole.DEVELOPER, UserRole.NATION_ADMIN]:
             return current_user
         if current_user.role not in self.allowed_roles:
             raise HTTPException(
@@ -50,7 +51,7 @@ def require_role(allowed_roles: List[UserRole]):
 
 def require_permission(required_permission: str):
     def permission_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role == UserRole.DEVELOPER:
+        if current_user.role in [UserRole.DEVELOPER, UserRole.NATION_ADMIN]:
             return current_user
             
         user_permissions = ROLE_PERMISSIONS.get(current_user.role, [])
@@ -73,7 +74,8 @@ def resolve_hospital_id(
     If omitted, falls back to user's assigned hospital or the first available facility.
     For standard staff roles, strictly forces queries to current_user.hospital_id.
     """
-    if current_user.role in [UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]:
+    print(f"DEBUG: resolve_hospital_id called by user {current_user.username} with role {current_user.role}")
+    if current_user.role in [UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER, UserRole.NATION_ADMIN]:
         if hospital_id:
             return hospital_id
         if current_user.hospital_id:

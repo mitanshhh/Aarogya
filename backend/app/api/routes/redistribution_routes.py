@@ -7,7 +7,7 @@ from app.services.redistribution_service import generate_redistribution_plan
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("")
 def get_redistribution_plan(
     district_id: int = None,
     nation_id: int = None,

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -9,6 +9,7 @@ class HealthCentre(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
     type = Column(String, nullable=False) # PHC/CHC/Hospital
+    nation_id = Column(Integer, ForeignKey("nations.id"), nullable=True, index=True)
     district = Column(String, nullable=False, index=True)
     state = Column(String, nullable=False)
     total_beds = Column(Integer, default=0)

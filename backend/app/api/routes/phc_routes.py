@@ -75,6 +75,9 @@ def get_all_centres(
 ):
     query = db.query(HealthCentre)
     
+    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
+        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    
     if search:
         search_filter = f"%{search}%"
         query = query.filter(

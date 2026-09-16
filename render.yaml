@@ -1,12 +1,14 @@
 services:
+  # ─────────────────────────────────────────────────
+  # Main FastAPI Backend
+  # ─────────────────────────────────────────────────
   - type: web
     name: aarogya-backend
     runtime: python
     plan: free
     region: oregon
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -28,3 +30,23 @@ services:
         value: llama-3.3-70b-versatile
       - key: CHAT_NLP_PROVIDER
         value: groq
+      - key: AGGREGATOR_URL
+        fromService:
+          name: aarogya-aggregator
+          type: web
+          property: host
+
+  # ─────────────────────────────────────────────────
+  # Federated Learning Aggregator (FedAvg service)
+  # ─────────────────────────────────────────────────
+  - type: web
+    name: aarogya-aggregator
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend/federation-aggregator
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

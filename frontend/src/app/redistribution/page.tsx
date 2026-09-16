@@ -15,8 +15,9 @@ export default function RedistributionDashboard() {
     const fetchTransfers = async () => {
       try {
         const queryParams = new URLSearchParams();
-        if (user?.role === "NATION_ADMIN" && user.hospital?.district?.nation_id) {
-          queryParams.append("nation_id", user.hospital.district.nation_id.toString());
+        if (user?.role === "NATION_ADMIN") {
+          const nationId = (user as any).nation_id || 1;
+          queryParams.append("nation_id", nationId.toString());
         } else if (user?.role === "DISTRICT_ADMIN" && user.hospital?.district_id) {
           queryParams.append("district_id", user.hospital.district_id.toString());
         }

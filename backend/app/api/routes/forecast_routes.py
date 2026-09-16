@@ -41,5 +41,6 @@ def trigger_forecast_generation(
     if current_user.role not in [UserRole.NATION_ADMIN, UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
-    generate_forecasts(db, hospital_id)
+    nation_id = current_user.nation_id if getattr(current_user, 'nation_id', None) else 1
+    generate_forecasts(db, hospital_id, nation_id)
     return {"status": "success", "message": "Forecasts generated"}
