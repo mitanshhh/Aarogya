@@ -5,13 +5,16 @@ from app.models.inventory import InventoryItem, InventoryLog
 from app.models.patient import Patient, PatientAuditLog
 from app.models.bed import Bed
 from app.models.attendance import Doctor, DailyQRSession, AttendanceRecord
-from app.models.district import ResourceRequest
+from app.models.district import ResourceRequest, District
 from app.models.report import Report
 from app.models.notification import Notification
+from app.models.nation import Nation
 
 # This file imports all models so Alembic can discover them
 __all__ = [
     "Base",
+    "Nation",
+    "District",
     "User",
     "RefreshToken",
     "HealthCentre",

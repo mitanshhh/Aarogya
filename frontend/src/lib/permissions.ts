@@ -9,21 +9,24 @@
  */
 
 export const ROUTE_PERMISSIONS: Record<string, string[]> = {
-  "/district-admin": ["DISTRICT_ADMIN", "DEVELOPER"],
+  "/district-admin": ["NATION_ADMIN", "DISTRICT_ADMIN", "DEVELOPER"],
   "/health-centre":  ["DISTRICT_ADMIN", "DEVELOPER"],
-  "/inventory":      ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "PHARMACIST", "DEVELOPER"],
-  "/forecasting":    ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
+  "/inventory":      ["NATION_ADMIN", "DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "PHARMACIST", "DEVELOPER"],
+  "/forecasting":    ["NATION_ADMIN", "DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/attendance":     ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DOCTOR", "RECEPTIONIST", "PHARMACIST", "DATA_ENTRY", "LAB_TECHNICIAN", "DEVELOPER"],
   "/patients":       ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "DOCTOR", "DEVELOPER"],
   "/beds":           ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DATA_ENTRY", "RECEPTIONIST", "DEVELOPER"],
-  "/analytics":      ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
+  "/analytics":      ["NATION_ADMIN", "DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/ai-audit":       ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/manage-roles":   ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/phc":            ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/reports":        ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
+  "/federation":     ["NATION_ADMIN", "DEVELOPER"],
+  "/redistribution": ["NATION_ADMIN", "DISTRICT_ADMIN", "DEVELOPER"],
 };
 
 export const ROLE_HOME: Record<string, string> = {
+  NATION_ADMIN:    "/federation",
   DISTRICT_ADMIN:  "/district-admin",
   MEDICAL_OFFICER: "/inventory",
   DATA_ENTRY:      "/inventory",

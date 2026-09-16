@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 class UserRole(str, enum.Enum):
+    NATION_ADMIN = "NATION_ADMIN"
     DISTRICT_ADMIN = "DISTRICT_ADMIN"
     MEDICAL_OFFICER = "MEDICAL_OFFICER"
     DOCTOR = "DOCTOR"
