@@ -19,3 +19,30 @@ class FederatedModelVersion(Base):
     global_mae = Column(Float, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class AggregatorLocalUpdate(Base):
+    __tablename__ = "aggregator_local_updates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, index=True, nullable=False)
+    nation_id = Column(Integer, index=True, nullable=False)
+    nation_name = Column(String, nullable=False)
+    phc_name = Column(String, nullable=False)
+    
+    coef = Column(String, nullable=False) # JSON string
+    intercept = Column(Float, nullable=False)
+    mae = Column(Float, nullable=False)
+    
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class AggregatorGlobalModel(Base):
+    __tablename__ = "aggregator_global_models"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, unique=True, index=True, nullable=False)
+    
+    coef = Column(String, nullable=False) # JSON string
+    intercept = Column(Float, nullable=False)
+    version = Column(Integer, default=0)
+    
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
