@@ -31,10 +31,7 @@ services:
       - key: CHAT_NLP_PROVIDER
         value: groq
       - key: AGGREGATOR_URL
-        fromService:
-          name: aarogya-aggregator
-          type: web
-          property: host
+        value: https://aarogya-aggregator.onrender.com
 
   # ─────────────────────────────────────────────────
   # Federated Learning Aggregator (FedAvg service)
@@ -44,9 +41,9 @@ services:
     runtime: python
     plan: free
     region: oregon
-    rootDir: backend/federation-aggregator
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: cd backend/federation-aggregator && pip install -r requirements.txt
+    startCommand: cd backend/federation-aggregator && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+
