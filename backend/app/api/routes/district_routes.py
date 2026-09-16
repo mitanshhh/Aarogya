@@ -11,6 +11,7 @@ from app.schemas.district import ResourceRequestResponse, ResourceRequestCreate,
 from app.schemas.patient import PatientResponse
 from app.schemas.common import PaginatedResponse
 from app.api.dependencies import get_current_user, require_role, resolve_hospital_id
+from app.models.inventory import InventoryItem, InventoryLog
 
 router = APIRouter()
 
@@ -154,12 +155,52 @@ def create_resource_request(
     db.refresh(new_req)
     return new_req
 
+class AdminResourceRequestCreate(ResourceRequestCreate):
+    donor_phc_id: int
+    requesting_phc_id: int
+
+@router.post("/resource-request/admin-create", response_model=ResourceRequestResponse)
+def admin_create_resource_request(
+    request_in: AdminResourceRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.NATION_ADMIN, UserRole.DEVELOPER]))
+):
+    new_req = ResourceRequest(
+        requesting_phc_id=request_in.requesting_phc_id,
+        donor_phc_id=request_in.donor_phc_id,
+        requested_by_user_id=current_user.id,
+        target_district=request_in.target_district,
+        resource_type=request_in.resource_type,
+        resource_name=request_in.resource_name,
+        quantity=request_in.quantity,
+        urgency=request_in.urgency,
+        notes=request_in.notes,
+        status="PENDING_DONOR",
+        admin_note="AI Recommended Redistribution"
+    )
+    db.add(new_req)
+    db.commit()
+    db.refresh(new_req)
+    
+    # Notify Donor PHC
+    target_user = db.query(User).filter(User.hospital_id == new_req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.HOSPITAL_ADMIN])).first()
+    if target_user:
+        db.add(Notification(
+            user_id=target_user.id,
+            title="Order from Admin",
+            message=f"Please send {new_req.quantity} units of {new_req.resource_name} to target PHC. Request ID: {new_req.id}",
+            action_url=f"/api/v1/district/resource-request/{new_req.id}/approve-donation"
+        ))
+    db.commit()
+    
+    return new_req
+
 @router.put("/resource-request/{request_id}", response_model=ResourceRequestResponse)
 def update_resource_request(
     request_id: int,
     update_in: ResourceRequestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.NATION_ADMIN, UserRole.DEVELOPER]))
 ):
     req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
     if not req:
@@ -167,29 +208,123 @@ def update_resource_request(
         
     if update_in.status:
         req.status = update_in.status
-    if update_in.admin_note:
+    if update_in.admin_note is not None:
         req.admin_note = update_in.admin_note
+    if update_in.donor_phc_id is not None:
+        req.donor_phc_id = update_in.donor_phc_id
         
-    # Trigger a notification to the PHC
-    admin_action = "Approved" if req.status == "APPROVED" else "Rejected" if req.status == "REJECTED" else req.status
-    
-    # We should notify users at the requesting PHC. For simplicity, we just create a broadcast notification 
-    # for that PHC or the PHC_ADMIN role.
-    # But since Notification model in this app might not support hospital_id targeting natively, we will 
-    # just create a generic one for now (or let the PHC staff poll requests). 
-    # Find an appropriate user to notify (e.g., any user at that PHC)
-    target_user = db.query(User).filter(User.hospital_id == req.requesting_phc_id).first()
-    if target_user:
-        notif = Notification(
-            user_id=target_user.id,
-            title=f"Resource Request {admin_action}",
-            message=f"Request for {req.resource_name}: {update_in.admin_note or 'No notes provided.'}"
-        )
-        db.add(notif)
-    
+    # Trigger a notification to the Donor PHC if it's PENDING_DONOR
+    if req.status == "PENDING_DONOR" and req.donor_phc_id:
+        target_user = db.query(User).filter(User.hospital_id == req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.HOSPITAL_ADMIN])).first()
+        if target_user:
+            db.add(Notification(
+                user_id=target_user.id,
+                title="Order from Admin",
+                message=f"Please send {req.quantity} units of {req.resource_name} to target PHC. Request ID: {req.id}",
+                action_url=f"/api/v1/district/resource-request/{req.id}/approve-donation"
+            ))
+            
+    # Notify Requesting PHC if rejected
+    if req.status == "REJECTED":
+        target_user = db.query(User).filter(User.hospital_id == req.requesting_phc_id).first()
+        if target_user:
+            db.add(Notification(
+                user_id=target_user.id,
+                title="Request Rejected",
+                message=f"Your request for {req.resource_name} was rejected: {req.admin_note}"
+            ))
+
     db.commit()
     db.refresh(req)
     return req
+
+@router.post("/resource-request/{request_id}/approve-donation")
+def approve_donation(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.HOSPITAL_ADMIN, UserRole.PHARMACIST, UserRole.DEVELOPER]))
+):
+    req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
+    if not req or req.status != "PENDING_DONOR":
+        raise HTTPException(status_code=400, detail="Invalid request")
+        
+    if current_user.hospital_id != req.donor_phc_id and current_user.role != UserRole.DEVELOPER:
+        raise HTTPException(status_code=403, detail="Not authorized for this donor PHC")
+        
+    # Deduct inventory from donor
+    inventory = db.query(InventoryItem).filter_by(hospital_id=req.donor_phc_id, name=req.resource_name).first()
+    if not inventory or inventory.quantity < req.quantity:
+        raise HTTPException(status_code=400, detail="Not enough inventory to fulfill donation")
+        
+    inventory.quantity -= req.quantity
+    
+    # Log it
+    db.add(InventoryLog(inventory_id=inventory.id, change_type="DONATION_DISPENSE", change_amount=-req.quantity, performed_by_user_id=current_user.id))
+    
+    req.status = "SHIPPED"
+    
+    # Notify Receiver PHC
+    target_user = db.query(User).filter(User.hospital_id == req.requesting_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST])).first()
+    if target_user:
+        db.add(Notification(
+            user_id=target_user.id,
+            title="Order Dispatched",
+            message=f"{req.quantity} units of {req.resource_name} have been shipped to you.",
+            action_url=f"/api/v1/district/resource-request/{req.id}/mark-received"
+        ))
+        
+    db.commit()
+    return {"status": "success", "message": "Donation approved and shipped"}
+
+@router.post("/resource-request/{request_id}/mark-received")
+def mark_received(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.HOSPITAL_ADMIN, UserRole.PHARMACIST, UserRole.DEVELOPER]))
+):
+    req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
+    if not req or req.status != "SHIPPED":
+        raise HTTPException(status_code=400, detail="Invalid request")
+        
+    if current_user.hospital_id != req.requesting_phc_id and current_user.role != UserRole.DEVELOPER:
+        raise HTTPException(status_code=403, detail="Not authorized for this requesting PHC")
+        
+    # Add inventory to receiver
+    inventory = db.query(InventoryItem).filter_by(hospital_id=req.requesting_phc_id, name=req.resource_name).first()
+    if not inventory:
+        # Create it if it doesn't exist
+        donor_inv = db.query(InventoryItem).filter_by(hospital_id=req.donor_phc_id, name=req.resource_name).first()
+        inventory = InventoryItem(
+            hospital_id=req.requesting_phc_id,
+            name=req.resource_name,
+            item_code=donor_inv.item_code if donor_inv else "",
+            category=donor_inv.category if donor_inv else "Medicine",
+            quantity=req.quantity,
+            unit=donor_inv.unit if donor_inv else "units",
+            price=donor_inv.price if donor_inv else 0
+        )
+        db.add(inventory)
+        db.commit() # commit so we get inventory.id
+        db.refresh(inventory)
+    else:
+        inventory.quantity += req.quantity
+        
+    # Log it
+    db.add(InventoryLog(inventory_id=inventory.id, change_type="DONATION_RECEIVE", change_amount=req.quantity, performed_by_user_id=current_user.id))
+    
+    req.status = "COMPLETED"
+    
+    # Notify Donor PHC
+    target_user = db.query(User).filter(User.hospital_id == req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST])).first()
+    if target_user:
+        db.add(Notification(
+            user_id=target_user.id,
+            title="Donation Received",
+            message=f"Target PHC successfully received {req.quantity} units of {req.resource_name}."
+        ))
+        
+    db.commit()
+    return {"status": "success", "message": "Meds received and transaction completed"}
 
 @router.get("/patients/search", response_model=PaginatedResponse[PatientResponse])
 def search_patients_globally(

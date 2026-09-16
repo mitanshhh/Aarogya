@@ -7,6 +7,7 @@ import { Bell, Check, Loader2 } from "lucide-react";
 import { apiFetch, API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 
 export default function NotificationsPage() {
   const { token, user } = useAuth();
@@ -50,6 +51,29 @@ export default function NotificationsPage() {
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleAction = async (n: any) => {
+    if (!token || !n.action_url) return;
+    try {
+      const res = await apiFetch(`${API_BASE_URL}${n.action_url.replace('/api/v1', '')}`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "X-Role": user?.role || "" 
+        },
+      });
+      if (res.ok) {
+        toast.success("Action completed successfully!");
+        markAsRead(n.id);
+      } else {
+        toast.error("Failed to perform action");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("An error occurred");
     }
   };
 
@@ -140,6 +164,16 @@ export default function NotificationsPage() {
                     >
                       Mark as read
                     </button>
+                  )}
+                  {n.action_url && !n.is_read && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleAction(n)}
+                      className="ml-auto flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" /> 
+                      {n.action_url.includes("approve-donation") ? "Ship Meds" : n.action_url.includes("mark-received") ? "Mark Received" : "Take Action"}
+                    </Button>
                   )}
                 </div>
               </div>

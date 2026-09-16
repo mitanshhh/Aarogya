@@ -38,7 +38,7 @@ def generate_redistribution_plan(db: Session, district_id: int = None, nation_id
     inventory_by_name = {}
     for item in items:
         if item.name not in inventory_by_name:
-            inventory_by_name[item.name] = {"surplus": [], "deficit": []}
+            inventory_by_name[item.name] = {"surplus": [], "deficit": [], "price": item.price}
             
         current_stock = item.quantity
         min_thresh = item.min_threshold
@@ -75,7 +75,7 @@ def generate_redistribution_plan(db: Session, district_id: int = None, nation_id
             best_dist = float('inf')
             
             for i, surplus in enumerate(surpluses):
-                if surplus["amount_available"] <= 0:
+                if surplus["amount_available"] <= 0 or surplus["hospital_id"] == deficit["hospital_id"]:
                     continue
                 source_hc = health_centres[surplus["hospital_id"]]
                 dist = haversine_distance(target_hc.latitude, target_hc.longitude, source_hc.latitude, source_hc.longitude)
@@ -101,6 +101,7 @@ def generate_redistribution_plan(db: Session, district_id: int = None, nation_id
                     "to_hospital_id": target_hc.id,
                     "to_hospital_name": target_hc.name,
                     "quantity": transfer_amt,
+                    "total_cost": transfer_amt * data["price"],
                     "distance_km": round(best_dist if best_dist < 500 else haversine_distance(target_hc.latitude, target_hc.longitude, source_hc.latitude, source_hc.longitude), 2),
                     "is_cross_district": target_hc.district != source_hc.district
                 })

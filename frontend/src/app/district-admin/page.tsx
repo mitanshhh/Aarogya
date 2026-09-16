@@ -19,6 +19,7 @@ export default function DistrictAdminDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [mapData, setMapData] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<any>(null);
+  const [selectedDonorPhc, setSelectedDonorPhc] = useState<string>("");
   const [customReply, setCustomReply] = useState("");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [newPhc, setNewPhc] = useState({
@@ -64,14 +65,19 @@ export default function DistrictAdminDashboard() {
   const handleApprove = async () => {
     if(!selectedReq) return;
     try {
+      const payload: any = { status: selectedDonorPhc ? "PENDING_DONOR" : "APPROVED", admin_note: customReply };
+      if (selectedDonorPhc) {
+          payload.donor_phc_id = Number(selectedDonorPhc);
+      }
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/district/resource-request/${selectedReq.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "APPROVED", admin_note: customReply })
+        body: JSON.stringify(payload)
       });
       if(res.ok) {
-        toast.success("Request approved! AI letter sent to PHC.");
+        toast.success(selectedDonorPhc ? "Request forwarded to Donor PHC!" : "Request approved!");
         setSelectedReq(null);
+        setSelectedDonorPhc("");
         setCustomReply("");
         fetchData();
       } else {
@@ -380,6 +386,21 @@ export default function DistrictAdminDashboard() {
             <div className="bg-muted/30 p-3 rounded-lg border border-border text-sm mb-4">
               <span className="font-semibold text-foreground block mb-1">PHC Notes:</span>
               <span className="text-muted-foreground">{selectedReq?.notes || "No additional notes provided."}</span>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="font-semibold text-sm mb-1">Select Donor PHC (Optional):</h4>
+              <select 
+                className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={selectedDonorPhc}
+                onChange={(e) => setSelectedDonorPhc(e.target.value)}
+              >
+                <option value="">-- Do not specify (Direct Approval) --</option>
+                {mapData.filter(hc => hc.id !== selectedReq?.requesting_phc_id).map(hc => (
+                  <option key={hc.id} value={hc.id}>{hc.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">If selected, the Donor PHC will be notified to dispatch the medicine.</p>
             </div>
             
             <h4 className="font-semibold text-sm mb-1">Admin Reply (Optional):</h4>

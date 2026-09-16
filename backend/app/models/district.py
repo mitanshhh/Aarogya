@@ -21,6 +21,7 @@ class ResourceRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     requesting_phc_id = Column(Integer, ForeignKey("health_centres.id"), nullable=False, index=True)
+    donor_phc_id = Column(Integer, ForeignKey("health_centres.id"), nullable=True, index=True)
     requested_by_user_id = Column(Integer, nullable=True)
     target_district = Column(String, nullable=False, index=True)
     resource_type = Column(String, nullable=False) # Medicine/Equipment/Staff/Beds

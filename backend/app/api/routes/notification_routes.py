@@ -14,6 +14,7 @@ class NotificationResponse(BaseModel):
     id: int
     title: str
     message: str
+    action_url: str | None = None
     is_read: bool
     timestamp: datetime
     
@@ -33,6 +34,7 @@ def get_notifications(
             "id": n.id,
             "title": n.title,
             "message": n.message,
+            "action_url": n.action_url,
             "is_read": n.is_read,
             "timestamp": n.created_at
         })

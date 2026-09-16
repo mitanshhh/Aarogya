@@ -40,7 +40,7 @@ def push_model(update: ModelUpdate):
     try:
         # Check if local update exists
         local = db.query(AggregatorLocalUpdate).filter_by(
-            category=update.category, nation_id=update.nation_id
+            category=update.category, nation_id=update.nation_id, phc_name=update.phc_name
         ).first()
         
         if not local:

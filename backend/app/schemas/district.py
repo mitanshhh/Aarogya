@@ -14,12 +14,14 @@ class ResourceRequestCreate(ResourceRequestBase):
     pass
 
 class ResourceRequestUpdate(BaseModel):
-    status: str # PENDING/APPROVED/REJECTED/FULFILLED
+    status: str # PENDING_ADMIN/PENDING_DONOR/SHIPPED/COMPLETED/REJECTED
     admin_note: Optional[str] = None
+    donor_phc_id: Optional[int] = None
 
 class ResourceRequestResponse(ResourceRequestBase):
     id: int
     requesting_phc_id: int
+    donor_phc_id: Optional[int] = None
     requested_by_user_id: Optional[int] = None
     status: str
     admin_note: Optional[str] = None
