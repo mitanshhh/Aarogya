@@ -3,7 +3,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { 
+  Bell, 
+  CheckCircle2, 
+  Info, 
+  AlertTriangle, 
+  AlertCircle, 
+  Clock, 
+  Check,
+  X,
+  Loader2
+} from "lucide-react";
 import { apiFetch, API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -57,7 +67,7 @@ export default function NotificationsPage() {
   const handleAction = async (n: any) => {
     if (!token || !n.action_url) return;
     try {
-      const res = await apiFetch(`${API_BASE_URL}${n.action_url.replace('/api/v1', '')}`, {
+      const res = await apiFetch(`${API_BASE_URL}${n.action_url}`, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
@@ -67,9 +77,45 @@ export default function NotificationsPage() {
       });
       if (res.ok) {
         toast.success("Action completed successfully!");
-        markAsRead(n.id);
+        setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, is_read: true, action_url: null } : notif));
+        apiFetch(`${API_BASE_URL}/api/v1/notifications/${n.id}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } else {
         toast.error("Failed to perform action");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("An error occurred");
+    }
+  };
+
+  const handleReject = async (n: any) => {
+    if (!token || !n.action_url) return;
+    const match = n.action_url.match(/resource-request\/(\d+)/);
+    if (!match) return;
+    const reqId = match[1];
+    
+    try {
+      const res = await apiFetch(`${API_BASE_URL}/api/v1/district/resource-request/${reqId}`, {
+        method: "PUT",
+        headers: { 
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "X-Role": user?.role || "" 
+        },
+        body: JSON.stringify({ status: "REJECTED", admin_note: "Rejected by Donor PHC" })
+      });
+      if (res.ok) {
+        toast.success("Request rejected successfully");
+        setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, is_read: true, action_url: null } : notif));
+        apiFetch(`${API_BASE_URL}/api/v1/notifications/${n.id}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        toast.error("Failed to reject request");
       }
     } catch (e) {
       console.error(e);
@@ -165,15 +211,26 @@ export default function NotificationsPage() {
                       Mark as read
                     </button>
                   )}
-                  {n.action_url && !n.is_read && (
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleAction(n)}
-                      className="ml-auto flex items-center gap-2"
-                    >
-                      <Check className="w-4 h-4" /> 
-                      {n.action_url.includes("approve-donation") ? "Ship Meds" : n.action_url.includes("mark-received") ? "Mark Received" : "Take Action"}
-                    </Button>
+                  {n.action_url && (
+                    <div className="ml-auto flex items-center gap-2">
+                      {n.action_url.includes("approve-donation") && (
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleReject(n)}
+                        >
+                          <X className="w-4 h-4 mr-2" /> Reject
+                        </Button>
+                      )}
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleAction(n)}
+                        className="flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" /> 
+                        {n.action_url.includes("approve-donation") ? "Ship Meds" : n.action_url.includes("mark-received") ? "Mark Received" : "Take Action"}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
