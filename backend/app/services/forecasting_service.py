@@ -6,8 +6,9 @@ from sqlalchemy import func
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-from app.models import HealthCentre, InventoryItem, InventoryLog, MedicineForecast, Patient
+from app.models import HealthCentre, InventoryItem, InventoryLog, MedicineForecast, Patient, Nation, FederatedModelVersion
 from app.schema_constants import FORECAST_FEATURES, TARGET_VARIABLE
+import json
 
 # Placeholder for in-memory category models (so we don't need a DB table for the model blob in this phase)
 # In Phase 4, we'll store/pull these from the aggregator.
@@ -125,14 +126,53 @@ def train_local_model(db: Session, category: str):
     mae = mean_absolute_error(y_test, preds)
     
     # Save local model
+    local_coefs = model.coef_.tolist()
+    local_intercept = float(model.intercept_)
+    local_mae = float(mae)
+    
     LOCAL_MODELS[category] = {
-        "coef": model.coef_.tolist(),
-        "intercept": float(model.intercept_),
-        "mae": float(mae),
-        "trained_at": datetime.now(timezone.utc).isoformat()
+        "coef": local_coefs,
+        "intercept": local_intercept,
+        "mae": local_mae,
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "is_global": False
     }
     
-    # Optionally save to FederatedModelVersion if implementing Phase 4
+    # --- PHASE 4: Federation Integration ---
+    # 1. Fetch current Nation (assuming 1 nation per node)
+    nation = db.query(Nation).first()
+    nation_id = nation.id if nation else 1
+    
+    # 2. Push local model to aggregator
+    push_local_model_update(category, nation_id)
+    
+    # 3. Pull global model from aggregator
+    pull_global_model(category)
+    
+    # 4. If global model was pulled, evaluate it on local data
+    global_mae = None
+    if LOCAL_MODELS[category].get("is_global"):
+        # The coefficients are now global
+        model.coef_ = np.array(LOCAL_MODELS[category]["coef"])
+        model.intercept_ = LOCAL_MODELS[category]["intercept"]
+        global_preds = model.predict(X_test)
+        global_mae = mean_absolute_error(y_test, global_preds)
+        LOCAL_MODELS[category]["global_mae"] = float(global_mae)
+        
+    # 5. Log metrics to DB
+    fmv = FederatedModelVersion(
+        nation_id=nation_id,
+        category=category,
+        local_coef=json.dumps(local_coefs),
+        local_intercept=local_intercept,
+        local_mae=local_mae,
+        global_coef=json.dumps(LOCAL_MODELS[category]["coef"]) if LOCAL_MODELS[category].get("is_global") else None,
+        global_intercept=LOCAL_MODELS[category]["intercept"] if LOCAL_MODELS[category].get("is_global") else None,
+        global_mae=float(global_mae) if global_mae is not None else None
+    )
+    db.add(fmv)
+    db.commit()
+    
     return True
 
 def generate_forecasts(db: Session, hospital_id: int = None):
@@ -212,9 +252,39 @@ def generate_forecasts(db: Session, hospital_id: int = None):
         
     db.commit()
 
-# Placeholders for Phase 4
-def push_local_model_update():
-    pass
+import requests
+import os
 
-def pull_global_model():
-    pass
+AGGREGATOR_URL = os.getenv("AGGREGATOR_URL", "http://localhost:8001")
+
+def push_local_model_update(category: str, nation_id: int):
+    if category not in LOCAL_MODELS:
+        return
+        
+    model_data = LOCAL_MODELS[category]
+    payload = {
+        "nation_id": nation_id,
+        "category": category,
+        "coef": model_data["coef"],
+        "intercept": model_data["intercept"],
+        "mae": model_data["mae"]
+    }
+    try:
+        # Use a short timeout since it's an internal call
+        requests.post(f"{AGGREGATOR_URL}/push-model", json=payload, timeout=5)
+    except Exception as e:
+        # Fail gracefully
+        print(f"Failed to push local model update to aggregator: {e}")
+
+def pull_global_model(category: str):
+    try:
+        resp = requests.get(f"{AGGREGATOR_URL}/pull-model?category={category}", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            # Update local model with global parameters
+            if category in LOCAL_MODELS:
+                LOCAL_MODELS[category]["coef"] = data["coef"]
+                LOCAL_MODELS[category]["intercept"] = data["intercept"]
+                LOCAL_MODELS[category]["is_global"] = True
+    except Exception as e:
+        print(f"Failed to pull global model from aggregator: {e}")

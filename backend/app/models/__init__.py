@@ -10,6 +10,7 @@ from app.models.report import Report
 from app.models.notification import Notification
 from app.models.nation import Nation
 from app.models.forecast import MedicineForecast
+from app.models.federation import FederatedModelVersion
 
 # This file imports all models so Alembic can discover them
 __all__ = [
@@ -30,5 +31,6 @@ __all__ = [
     "AttendanceRecord",
     "ResourceRequest",
     "Report",
-    "Notification"
+    "Notification",
+    "FederatedModelVersion"
 ]
