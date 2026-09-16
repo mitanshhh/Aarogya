@@ -16,10 +16,10 @@ export default function RedistributionDashboard() {
       try {
         const queryParams = new URLSearchParams();
         if (user?.role === "NATION_ADMIN") {
-          const nationId = (user as any).nation_id || 1;
+          const nationId = user.nation_id || 1;
           queryParams.append("nation_id", nationId.toString());
-        } else if (user?.role === "DISTRICT_ADMIN" && user.hospital?.district_id) {
-          queryParams.append("district_id", user.hospital.district_id.toString());
+        } else if (user?.role === "DISTRICT_ADMIN" && user.hospital_id) {
+          queryParams.append("hospital_id", user.hospital_id.toString());
         }
 
         const res = await apiFetch(`${API_BASE_URL}/api/v1/redistribution/?${queryParams.toString()}`, {

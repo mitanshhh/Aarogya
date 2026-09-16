@@ -2,12 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiLogin, apiLogout, apiGetMe, API_BASE_URL, type ApiUser } from "@/lib/api";
+import { apiLogin, apiLogout, apiGetMe, API_BASE_URL } from "@/lib/api";
 
 // ─── Backend role names (matches UserRole enum exactly) ──────────────────────
 // PHC_ADMIN → MEDICAL_OFFICER  |  PHC_STAFF → DATA_ENTRY  (frontend aliases)
 export type BackendRole =
   | "DISTRICT_ADMIN"
+  | "NATION_ADMIN"
   | "MEDICAL_OFFICER"
   | "RECEPTIONIST"
   | "DATA_ENTRY"

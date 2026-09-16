@@ -144,18 +144,19 @@ export default function InventoryManagement() {
       
       const fetchOpts: RequestInit = { headers, cache: 'no-store' };
       
-      const [itemsRes, logsRes, requestsRes, forecastsRes] = await Promise.all([
+      const [itemsRes, logsRes, requestsRes, forecastsRaw] = await Promise.all([
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/?limit=100${hospitalQuery}`, fetchOpts),
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/logs?limit=50${hospitalQuery}`, fetchOpts),
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/requests?limit=100${hospitalQuery}`, fetchOpts),
-        selectedHospitalId ? apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/forecast/${selectedHospitalId}`, fetchOpts) : Promise.resolve({ ok: false })
+        selectedHospitalId ? apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/forecast/${selectedHospitalId}`, fetchOpts) : Promise.resolve({ ok: false } as { ok: boolean })
       ]);
+      const forecastsRes = forecastsRaw as Response | { ok: boolean };
 
       if (itemsRes.ok) {
         const itemsData = await itemsRes.json();
         const logsData = logsRes.ok ? await logsRes.json() : { data: [] };
         
-        const forecastsData = forecastsRes.ok ? await forecastsRes.json() : [];
+        const forecastsData = forecastsRes.ok ? await (forecastsRes as Response).json() : [];
         setForecasts(forecastsData);
         
         const mappedItems = (itemsData.data || []).map((item: any) => {
