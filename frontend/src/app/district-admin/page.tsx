@@ -22,7 +22,7 @@ export default function DistrictAdminDashboard() {
   const [customReply, setCustomReply] = useState("");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [newPhc, setNewPhc] = useState({
-    name: "", type: "PHC", phc_id: "", admin_email: "", admin_mobile: "", location: ""
+    name: "", type: "PHC", phc_id: "", admin_email: "", admin_mobile: "", location: "", latitude: "", longitude: ""
   });
   
   // Patient Search State
@@ -111,10 +111,10 @@ export default function DistrictAdminDashboard() {
       return;
     }
     
-    // Geocode location to get lat/lng
-    let lat = 0.0;
-    let lng = 0.0;
-    if (newPhc.location && window.google) {
+    // Geocode location to get lat/lng if not manually provided
+    let lat = parseFloat(newPhc.latitude) || 0.0;
+    let lng = parseFloat(newPhc.longitude) || 0.0;
+    if (newPhc.location && window.google && !lat && !lng) {
       try {
         const geocoder = new window.google.maps.Geocoder();
         const results = await geocoder.geocode({ address: newPhc.location });
@@ -149,7 +149,7 @@ export default function DistrictAdminDashboard() {
           toast.warning(created.email_detail || "PHC registered, but onboarding email was not sent.", { duration: 15000 });
         }
         setIsRegisterOpen(false);
-        setNewPhc({ name: "", type: "PHC", phc_id: "", admin_email: "", admin_mobile: "", location: "" });
+        setNewPhc({ name: "", type: "PHC", phc_id: "", admin_email: "", admin_mobile: "", location: "", latitude: "", longitude: "" });
         fetchData();
       } else {
         const err = await res.json();
@@ -438,12 +438,34 @@ export default function DistrictAdminDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Location</Label>
+              <Label>Location / Address</Label>
               <Input 
                 placeholder="Enter location" 
                 value={newPhc.location} 
                 onChange={e => setNewPhc({...newPhc, location: e.target.value})} 
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Latitude</Label>
+                <Input 
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 19.0760" 
+                  value={newPhc.latitude} 
+                  onChange={e => setNewPhc({...newPhc, latitude: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Longitude</Label>
+                <Input 
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 72.8777" 
+                  value={newPhc.longitude} 
+                  onChange={e => setNewPhc({...newPhc, longitude: e.target.value})} 
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

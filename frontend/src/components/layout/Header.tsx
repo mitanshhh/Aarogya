@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Search, Bell, User, Menu, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
+import { Search, User, Menu, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LOCALE_LABELS, Locale } from '@/lib/translations';
@@ -20,10 +19,6 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
   const { user, logout, token, selectedHospitalId, setSelectedHospitalId } = useAuth();
   const { locale, setLocale, t, isTranslating } = useLanguage();
   const pathname = usePathname();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
-  
   const [hospitals, setHospitals] = useState<Record<string, unknown>[]>([]);
   const [hospitalSearch, setHospitalSearch] = useState('');
   const [backendDown, setBackendDown] = useState(false);
@@ -32,23 +27,6 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
     String(h.name).toLowerCase().includes(hospitalSearch.toLowerCase())
   );
 
-  const fetchNotifications = async () => {
-    if (!token) return;
-    try {
-      const res = await apiFetch(`${API_BASE_URL}/api/v1/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
-        setUnreadCount(data.filter((n: Record<string, unknown>) => !n.is_read).length);
-        setBackendDown(false);
-      }
-    } catch(e) {
-      // Silently handle backend connection failures (e.g. server not started)
-      setBackendDown(true);
-    }
-  };
 
   const fetchHospitals = async () => {
     if (!token || (user?.role !== 'DISTRICT_ADMIN' && user?.role !== 'DEVELOPER' && user?.role !== 'NATION_ADMIN')) return;
@@ -71,36 +49,9 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
   };
 
   useEffect(() => {
-    fetchNotifications();
     fetchHospitals();
-    // Poll every 30s (was 10s) — reduces noise when backend is down
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 30000);
-    return () => clearInterval(interval);
   }, [token, user]);
 
-  const handleNotificationClick = (n: Record<string, unknown>) => {
-    setSelectedNotification(n);
-  };
-
-  const markAsRead = async (id: number) => {
-    if (!token) return;
-    try {
-      await apiFetch(`${API_BASE_URL}/api/v1/notifications/${id}/read`, { 
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      fetchNotifications();
-    } catch(e) { console.error(e); }
-  };
-
-  const handleClosePopup = () => {
-    if (selectedNotification && !selectedNotification.is_read) {
-      markAsRead(selectedNotification.id);
-    }
-    setSelectedNotification(null);
-  };
 
   const selectedHospitalName = (hospitals.find(h => h.id === selectedHospitalId)?.name as string) || 'Select Hospital';
 
@@ -177,43 +128,6 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
       </div>
       
       <div className="flex items-center gap-2 md:gap-3">
-
-        {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="relative flex items-center justify-center focus:outline-none text-muted-foreground rounded-full hover:bg-muted/80 hover:text-foreground hover:shadow-sm transition-all h-9 w-9">
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full border border-card shadow-[0_0_8px_rgba(255,0,0,0.5)]"></span>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 max-h-[400px] overflow-y-auto rounded-xl p-2 shadow-xl border-border bg-card/95 backdrop-blur-md">
-            <div className="flex justify-between items-center p-2 mb-1">
-              <p className="font-semibold text-foreground">{t('header.notifications')}</p>
-              {unreadCount > 0 && <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">{unreadCount} {t('header.new')}</span>}
-            </div>
-            <DropdownMenuSeparator />
-            {notifications.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">{t('header.noNotifications')}</div>
-            ) : (
-              notifications.map((n: any) => (
-                <div 
-                  key={n.id} 
-                  onClick={() => handleNotificationClick(n)}
-                  className={`p-3 mb-1 rounded-lg text-sm transition-colors cursor-pointer hover:bg-muted/80 ${n.is_read ? 'opacity-70 bg-transparent' : 'bg-muted/50 border border-primary/20'}`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <p className={`font-semibold ${n.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>{n.title}</p>
-                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary mt-1"></span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{n.message}</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">{new Date(n.timestamp).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
-                </div>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="rounded-full focus:outline-none">
             <Avatar className="w-9 h-9 cursor-pointer border-2 border-primary/20 hover:border-primary shadow-sm transition-all duration-300 bg-muted flex items-center justify-center">
@@ -251,25 +165,6 @@ export function Header({ setIsMobileOpen }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <Dialog open={!!selectedNotification} onOpenChange={(open) => !open && handleClosePopup()}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedNotification?.title}</DialogTitle>
-            <DialogDescription>
-              {selectedNotification && new Date(selectedNotification.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground bg-muted/30 p-4 rounded-xl border border-border">
-              {selectedNotification?.message}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleClosePopup} className="cursor-pointer">{t('header.markAsRead')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </header>
   );
 }

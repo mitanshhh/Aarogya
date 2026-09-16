@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Hospital, Package, Stethoscope, BedDouble, LineChart, FileText, ChevronLeft, ChevronRight, Users, Building2, Sparkles, Activity, Globe2, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, Hospital, Package, Stethoscope, BedDouble, LineChart, FileText, ChevronLeft, ChevronRight, Users, Building2, Sparkles, Activity, Globe2, ArrowRightLeft, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -26,6 +26,7 @@ export function Sidebar({ isCollapsed = false, setIsCollapsed, isMobileOpen = fa
 
   // Nav item definitions — roles are derived from the centralized ROUTE_PERMISSIONS map
   const allNavItems = [
+    { name: t('header.notifications') || "Notifications", href: '/notifications', icon: Bell },
     { name: t('nav.dashboard'),      href: '/district-admin', icon: LayoutDashboard },
     { name: "Federation",             href: '/federation',     icon: Globe2 },
     { name: t('nav.healthCentres'),   href: '/health-centre',  icon: Hospital },

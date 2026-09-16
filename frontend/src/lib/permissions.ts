@@ -23,6 +23,7 @@ export const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/reports":        ["DISTRICT_ADMIN", "MEDICAL_OFFICER", "DEVELOPER"],
   "/federation":     ["NATION_ADMIN", "DEVELOPER"],
   "/redistribution": ["NATION_ADMIN", "DISTRICT_ADMIN", "DEVELOPER"],
+  "/notifications":  ["MEDICAL_OFFICER", "RECEPTIONIST", "DEVELOPER"],
 };
 
 export const ROLE_HOME: Record<string, string> = {
