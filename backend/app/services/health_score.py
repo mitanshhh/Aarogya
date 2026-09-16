@@ -29,7 +29,7 @@ def calculate_health_score(db: Session, hospital_id: int) -> float:
         low_stock_ratio = low_stock / total_items
         score -= (low_stock_ratio * 100 * 0.3)
         
-    # 3. Staff Attendance Rate (25% weight)
+    # 3. Staff Attendance Rate (20% weight)
     today = get_now_ist().date()
     session = db.query(DailyQRSession).filter(DailyQRSession.hospital_id == hospital_id, DailyQRSession.date == today).first()
     total_doctors = db.query(Doctor).filter(Doctor.hospital_id == hospital_id).count()
@@ -37,11 +37,24 @@ def calculate_health_score(db: Session, hospital_id: int) -> float:
     if session and total_doctors > 0:
         present = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session.id).count()
         absence_rate = (total_doctors - present) / total_doctors
-        score -= (absence_rate * 100 * 0.25)
+        score -= (absence_rate * 100 * 0.20)
     else:
-        score -= 25 # Penalty for missing QR session or no doctors
+        score -= 20 # Penalty for missing QR session or no doctors
         
-    # 4. Patient Flow & Throughput (15% weight) - Simplified for MVP
+    # 4. Forecast Risk (10% weight) - newly added for BRICS hackathon
+    from app.models.forecast import MedicineForecast
+    from datetime import timedelta
+    
+    now_date = get_now_ist().date()
+    critical_stockouts = db.query(MedicineForecast).filter(
+        MedicineForecast.hospital_id == hospital_id,
+        MedicineForecast.projected_stockout_date <= now_date + timedelta(days=7)
+    ).count()
+    
+    if critical_stockouts > 0:
+        score -= min(10, critical_stockouts * 2) # max 10 points penalty
+        
+    # 5. Patient Flow & Throughput (10% weight) - Simplified for MVP
     
     return max(0.0, min(100.0, score))
 
@@ -121,9 +134,29 @@ def calculate_batch_health_scores(db: Session, hospital_ids: list[int]) -> dict[
         if session_id and total_doctors > 0:
             present = attendance_map.get(session_id, 0)
             absence_rate = (total_doctors - present) / total_doctors
-            scores[hid] -= (absence_rate * 100 * 0.25)
+            scores[hid] -= (absence_rate * 100 * 0.20)
         else:
-            scores[hid] -= 25  # Penalty for missing QR session or no doctors
+            scores[hid] -= 20  # Penalty for missing QR session or no doctors
+
+    # 4. Forecast Risk
+    from app.models.forecast import MedicineForecast
+    from datetime import timedelta
+    
+    now_date = get_now_ist().date()
+    forecast_stats = db.query(
+        MedicineForecast.hospital_id,
+        func.count(MedicineForecast.id).label("critical_stockouts")
+    ).filter(
+        MedicineForecast.hospital_id.in_(hospital_ids),
+        MedicineForecast.projected_stockout_date <= now_date + timedelta(days=7)
+    ).group_by(MedicineForecast.hospital_id).all()
+    
+    forecast_map = {row.hospital_id: (row.critical_stockouts or 0) for row in forecast_stats}
+    
+    for hid in hospital_ids:
+        critical = forecast_map.get(hid, 0)
+        if critical > 0:
+            scores[hid] -= min(10, critical * 2)
 
     return {hid: max(0.0, min(100.0, score)) for hid, score in scores.items()}
 

@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     email: EmailStr
     role: UserRole
     hospital_id: Optional[int] = None
+    nation_id: Optional[int] = None
 
 class UserCreate(UserBase):
     password: Optional[str] = None # Optional because admins can generate one

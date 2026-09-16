@@ -21,6 +21,7 @@ export interface User {
   email: string;
   role: BackendRole;
   hospital_id: number | null;
+  nation_id?: number | null;
   hospital_name?: string;
 }
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email:       me.email,
             role:        me.role as BackendRole,
             hospital_id: me.hospital_id,
+            nation_id:   me.nation_id,
             hospital_name: me.hospital_name,
           };
           setUser(mappedUser);
@@ -102,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email:       me.email,
       role:        me.role as BackendRole,
       hospital_id: me.hospital_id,
+      nation_id:   me.nation_id,
       hospital_name: me.hospital_name,
     };
 
