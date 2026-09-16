@@ -183,7 +183,7 @@ def admin_create_resource_request(
     db.refresh(new_req)
     
     # Notify Donor PHC
-    target_user = db.query(User).filter(User.hospital_id == new_req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.HOSPITAL_ADMIN])).first()
+    target_user = db.query(User).filter(User.hospital_id == new_req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST])).first()
     if target_user:
         db.add(Notification(
             user_id=target_user.id,
@@ -215,7 +215,7 @@ def update_resource_request(
         
     # Trigger a notification to the Donor PHC if it's PENDING_DONOR
     if req.status == "PENDING_DONOR" and req.donor_phc_id:
-        target_user = db.query(User).filter(User.hospital_id == req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.HOSPITAL_ADMIN])).first()
+        target_user = db.query(User).filter(User.hospital_id == req.donor_phc_id, User.role.in_([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST])).first()
         if target_user:
             db.add(Notification(
                 user_id=target_user.id,
@@ -242,7 +242,7 @@ def update_resource_request(
 def approve_donation(
     request_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.HOSPITAL_ADMIN, UserRole.PHARMACIST, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.DEVELOPER]))
 ):
     req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
     if not req or req.status != "PENDING_DONOR":
@@ -280,7 +280,7 @@ def approve_donation(
 def mark_received(
     request_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.HOSPITAL_ADMIN, UserRole.PHARMACIST, UserRole.DEVELOPER]))
+    current_user: User = Depends(require_role([UserRole.MEDICAL_OFFICER, UserRole.PHARMACIST, UserRole.DEVELOPER]))
 ):
     req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
     if not req or req.status != "SHIPPED":
