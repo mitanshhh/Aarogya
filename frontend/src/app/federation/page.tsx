@@ -14,10 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
 export default function FederationDashboard() {
   const { user } = useAuth();
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isEmergency, setIsEmergency] = useState(false);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -29,6 +33,12 @@ export default function FederationDashboard() {
           const data = await res.json();
           setStatus(data);
         }
+        
+        const resStatus = await apiFetch(`${API_BASE_URL}/api/v1/resilience/status`);
+        if (resStatus.ok) {
+          const rData = await resStatus.json();
+          setIsEmergency(rData.is_emergency_mode);
+        }
       } catch (err) {
         console.error("Failed to fetch federation status", err);
       } finally {
@@ -37,6 +47,21 @@ export default function FederationDashboard() {
     };
     fetchStatus();
   }, [user]);
+
+  const toggleEmergency = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE_URL}/api/v1/resilience/toggle?active=${!isEmergency}`, {
+        method: "POST",
+        headers: { "X-Role": user?.role || "NATION_ADMIN" }
+      });
+      if (res.ok) {
+        setIsEmergency(!isEmergency);
+        toast.success(`Emergency Mode ${!isEmergency ? 'Activated' : 'Deactivated'}`);
+      }
+    } catch (err) {
+      toast.error("Failed to toggle emergency mode");
+    }
+  };
 
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Loading Federation Status...</div>;
@@ -47,12 +72,21 @@ export default function FederationDashboard() {
   
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-          <Globe className="w-6 h-6 text-indigo-500" />
-          BRICS Federated Health Resilience Platform
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">Cross-nation predictive modelling & real-time resource visibility.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+            <Globe className="w-6 h-6 text-indigo-500" />
+            BRICS Federated Health Resilience Platform
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">Cross-nation predictive modelling & real-time resource visibility.</p>
+        </div>
+        <Button 
+          variant={isEmergency ? "outline" : "destructive"} 
+          onClick={toggleEmergency}
+          className={isEmergency ? "border-red-500 text-red-600 hover:bg-red-50" : "animate-pulse"}
+        >
+          {isEmergency ? "Deactivate Emergency Protocol" : "Declare Emergency"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

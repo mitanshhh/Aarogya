@@ -6,7 +6,7 @@ from app.api.routes import (
     auth_routes, user_routes, phc_routes, patient_routes, bed_routes, 
     inventory_routes, attendance_routes, district_routes, 
     analytics_routes, translate_routes,
-    notification_routes, chat_routes, ml_routes, forecast_routes, federation_routes, redistribution_routes
+    notification_routes, chat_routes, ml_routes, forecast_routes, federation_routes, redistribution_routes, resilience_routes
 )
 from fastapi.staticfiles import StaticFiles
 
@@ -60,6 +60,7 @@ app.include_router(ml_routes.router, prefix=f"{settings.API_V1_STR}/ml", tags=["
 app.include_router(forecast_routes.router, prefix=f"{settings.API_V1_STR}/forecast", tags=["forecast"])
 app.include_router(federation_routes.router, prefix=f"{settings.API_V1_STR}/federation", tags=["federation"])
 app.include_router(redistribution_routes.router, prefix=f"{settings.API_V1_STR}/redistribution", tags=["redistribution"])
+app.include_router(resilience_routes.router, prefix=f"{settings.API_V1_STR}/resilience", tags=["resilience"])
 # Mount static files for PDF reports
 import os
 os.makedirs("static", exist_ok=True)
