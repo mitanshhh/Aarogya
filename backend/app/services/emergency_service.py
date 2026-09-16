@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models import Nation, HealthCentre, District
-from app.services.health_score import calculate_phc_health_score
+from app.services.health_score import calculate_health_score
 
 def get_resilience_index(db: Session, nation_id: int = 1) -> float:
     # 1. Get all PHCs in nation
@@ -12,8 +12,9 @@ def get_resilience_index(db: Session, nation_id: int = 1) -> float:
     for hc in hcs:
         # We reuse the existing PHC health score
         # but in a real app we might weigh it or add cross-district factors
-        score_data = calculate_phc_health_score(db, hc.id)
-        total_score += score_data["score"]
+        score_data = calculate_health_score(db, hc.id)
+        # Note: calculate_health_score returns a float, not a dict
+        total_score += score_data
         
     avg_score = total_score / len(hcs)
     return round(avg_score, 2)
