@@ -238,6 +238,46 @@ def update_resource_request(
     db.refresh(req)
     return req
 
+@router.get("/resource-request/{request_id}/donor-candidates")
+def get_donor_candidates(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.NATION_ADMIN, UserRole.DEVELOPER]))
+):
+    req = db.query(ResourceRequest).filter(ResourceRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Resource request not found")
+        
+    req_phc = db.query(HealthCentre).filter(HealthCentre.id == req.requesting_phc_id).first()
+    if not req_phc:
+        raise HTTPException(status_code=400, detail="Requesting PHC not found")
+
+    candidates = db.query(
+        HealthCentre.id,
+        HealthCentre.name,
+        InventoryItem.quantity,
+        InventoryItem.min_threshold
+    ).join(
+        InventoryItem, InventoryItem.hospital_id == HealthCentre.id
+    ).filter(
+        InventoryItem.name.ilike(req.resource_name),
+        HealthCentre.nation_id == req_phc.nation_id,
+        HealthCentre.id != req.requesting_phc_id,
+        InventoryItem.quantity > InventoryItem.min_threshold
+    ).order_by(
+        (InventoryItem.quantity - InventoryItem.min_threshold).desc()
+    ).limit(5).all()
+
+    results = []
+    for c in candidates:
+        results.append({
+            "id": c.id,
+            "name": c.name,
+            "surplus": c.quantity - c.min_threshold
+        })
+
+    return {"candidates": results}
+
 @router.post("/resource-request/{request_id}/approve-donation")
 def approve_donation(
     request_id: int,

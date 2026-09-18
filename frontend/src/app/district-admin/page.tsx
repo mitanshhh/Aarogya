@@ -38,6 +38,28 @@ export default function DistrictAdminDashboard() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedHistoryReq, setSelectedHistoryReq] = useState<any>(null);
 
+  const [donorCandidates, setDonorCandidates] = useState<any[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+
+  const handleSelectReq = async (req: any) => {
+    setSelectedReq(req);
+    setSelectedDonorPhc("");
+    setCustomReply("");
+    setDonorCandidates([]);
+    setLoadingCandidates(true);
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/district/resource-request/${req.id}/donor-candidates`);
+      if (res.ok) {
+        const data = await res.json();
+        setDonorCandidates(data.candidates || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCandidates(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [resOverview, resReq, resMap] = await Promise.all([
@@ -284,7 +306,7 @@ export default function DistrictAdminDashboard() {
                   <div className="text-center py-10 text-muted-foreground text-sm">No pending requests</div>
                 ) : (
                   pendingRequests.map((req) => (
-                    <div key={req.id} onClick={() => setSelectedReq(req)} className={`rounded-lg p-3 border cursor-pointer transition-colors ${getUrgencyClasses(req.urgency)}`}>
+                    <div key={req.id} onClick={() => handleSelectReq(req)} className={`rounded-lg p-3 border cursor-pointer transition-colors ${getUrgencyClasses(req.urgency)}`}>
                       <div className="flex justify-between items-start mb-1">
                         <h4 className="text-sm font-semibold text-foreground">
                           {req.urgency === 'CRITICAL' && <AlertOctagon className="inline w-3 h-3 text-red-600 mr-1" />}
@@ -394,13 +416,24 @@ export default function DistrictAdminDashboard() {
                 className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 value={selectedDonorPhc}
                 onChange={(e) => setSelectedDonorPhc(e.target.value)}
+                disabled={loadingCandidates}
               >
                 <option value="">-- Do not specify (Direct Approval) --</option>
-                {mapData.filter(hc => hc.id !== selectedReq?.requesting_phc_id).map(hc => (
-                  <option key={hc.id} value={hc.id}>{hc.name}</option>
-                ))}
+                {loadingCandidates ? (
+                  <option disabled>Loading top candidates...</option>
+                ) : donorCandidates.length > 0 ? (
+                  donorCandidates.map(hc => (
+                    <option key={hc.id} value={hc.id}>
+                      {hc.name} (Surplus: {hc.surplus})
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No PHCs have surplus inventory</option>
+                )}
               </select>
-              <p className="text-xs text-muted-foreground mt-1">If selected, the Donor PHC will be notified to dispatch the medicine.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                If selected, the Donor PHC will be notified to dispatch the medicine.
+              </p>
             </div>
             
             <h4 className="font-semibold text-sm mb-1">Admin Reply (Optional):</h4>

@@ -20,7 +20,7 @@ Aarogya deeply integrates multiple Google technologies to deliver intelligent, s
 
 ### Gemini AI in Action
 
-The backend uses `google-genai` SDK with Gemini 2.5 Flash for two distinct AI pipelines:
+The backend uses `google-genai` SDK with Gemini 2.5 Flash for three distinct AI pipelines:
 
 **Inventory Insights** — Analyzes current stock for every item, identifies anomalies, and produces actionable recommendations:
 ```python
@@ -39,6 +39,18 @@ response = client.models.generate_content(
 def get_analytics_insights(analytics_data: dict, period_type: str) -> str:
     # Returns JSON with executive_summary, key_insights, risks[], recommendations[]
 ```
+
+**Resource Redistribution Engine** — Recommends Cross-District or intra-district inventory transfers to balance surpluses and prevent stockouts across the region.
+
+---
+
+## 🌍 Multi-Nation Federation Layer (Global Isolation)
+
+Aarogya supports multi-nation deployments (federation) where multiple countries can operate on the same unified platform without data overlap.
+
+- **Data Scoping:** Core models (`HealthCentre`, `User`) are mapped to a `nation_id`.
+- **NLP Strict Constraints:** The Groq SQL chatbot injects mandatory `nation_id` filters into all Virtual Tables/CTEs, ensuring that even a `NATION_ADMIN` can only query data belonging to their own country.
+- **Cross-Border Prevention:** The AI Redistribution Engine and Manual Resource Requests strictly filter donor PHC candidates to ensure they reside in the same nation as the requesting PHC.
 
 ---
 
@@ -292,9 +304,13 @@ Users can trigger an **AI-powered inventory analysis** that sends the complete s
 - District-wide risk factors
 - Actionable recommendations for the pharmacist or MO
 
-### Resource Requests (Cross-PHC)
+### Resource Requests (Cross-PHC) & Redistribution
 
 When a PHC is critically low on resources, staff can raise a **Resource Request** that gets escalated to the District Admin. Urgency levels: `LOW / MEDIUM / HIGH / CRITICAL`.
+
+**AI-Assisted Redistribution:** The District Admin dashboard features an AI engine that suggests optimal cross-district or intra-district transfers. When an admin approves a transfer, the system automatically finds the **Top 5 Donor Candidates** (PHCs within the same nation with the highest surplus) and allows the admin to select one. 
+
+**Actionable Notifications:** The selected Donor PHC receives an actionable notification to "Ship Meds". If they reject it, the District Admin is notified. If they approve, the requesting PHC receives a notification to "Mark Received", thus completing the fully audited supply chain loop.
 
 ### Inventory Log Audit Trail
 Every stock change (RESTOCK / DISPENSE / EXPIRED) is logged with:

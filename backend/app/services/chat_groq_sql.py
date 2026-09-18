@@ -386,14 +386,14 @@ def validate_generated_sql(sql: str) -> str:
     return normalized
 
 
-def _scope_for_user(current_user: User, hospital_id: Optional[int]) -> tuple[int, Optional[int]]:
-    if current_user.role == UserRole.DISTRICT_ADMIN:
+def _scope_for_user(current_user: User, hospital_id: Optional[int]) -> tuple[int, Optional[int], Optional[int]]:
+    if current_user.role == UserRole.DISTRICT_ADMIN or current_user.role == UserRole.NATION_ADMIN:
         if hospital_id:
-            return 0, hospital_id
-        return 1, None
+            return 0, hospital_id, current_user.nation_id
+        return 1, None, current_user.nation_id
     if not current_user.hospital_id:
         raise PermissionError("You are not assigned to any health centre.")
-    return 0, current_user.hospital_id
+    return 0, current_user.hospital_id, current_user.nation_id
 
 
 def _scoped_sql(sql: str) -> str:
@@ -402,15 +402,17 @@ WITH
 chat_health_centres AS (
     SELECT id, name, type, district, state, total_beds, available_beds, total_staff,
            latitude, longitude, contact_number, email, medical_officer, phc_id,
-           admin_email, admin_mobile, location, health_score, status
+           admin_email, admin_mobile, location, health_score, status, nation_id
     FROM health_centres
     WHERE (:scope_all = 1 OR id = :hospital_id)
+      AND (:nation_id IS NULL OR nation_id = :nation_id)
 ),
 chat_patients AS (
     SELECT id, hospital_id, patient_code, name, age, gender, contact, address,
            medical_history, status, admitted_at, discharged_at
     FROM patients
     WHERE (:scope_all = 1 OR hospital_id = :hospital_id)
+      AND hospital_id IN (SELECT id FROM chat_health_centres)
 ),
 chat_patient_audit_logs AS (
     SELECT l.id, l.patient_id, l.user_id, l.action, l.timestamp, l.details
@@ -422,6 +424,7 @@ chat_inventory_items AS (
            expiry_date, batch_number, status
     FROM inventory_items
     WHERE (:scope_all = 1 OR hospital_id = :hospital_id)
+      AND hospital_id IN (SELECT id FROM chat_health_centres)
 ),
 chat_inventory_logs AS (
     SELECT l.id, l.inventory_id, i.name AS item_name, l.change_type, l.change_amount,
@@ -433,16 +436,19 @@ chat_beds AS (
     SELECT id, hospital_id, bed_number, ward, bed_type, status, patient_id, admitted_at
     FROM beds
     WHERE (:scope_all = 1 OR hospital_id = :hospital_id)
+      AND hospital_id IN (SELECT id FROM chat_health_centres)
 ),
 chat_doctors AS (
     SELECT id, hospital_id, name, specialization, phone, email, shift, user_id
     FROM doctors
     WHERE (:scope_all = 1 OR hospital_id = :hospital_id)
+      AND hospital_id IN (SELECT id FROM chat_health_centres)
 ),
 chat_daily_qr_sessions AS (
     SELECT id, hospital_id, date, qr_token, is_active, created_at, updated_at
     FROM daily_qr_sessions
     WHERE (:scope_all = 1 OR hospital_id = :hospital_id)
+      AND hospital_id IN (SELECT id FROM chat_health_centres)
 ),
 chat_attendance_records AS (
     SELECT r.id, r.doctor_id, r.session_id, d.name AS doctor_name, d.hospital_id,
@@ -462,7 +468,7 @@ def execute_generated_sql(
     hospital_id: Optional[int],
 ) -> ChatQueryResult:
     safe_sql = validate_generated_sql(generated.sql)
-    scope_all, scoped_hospital_id = _scope_for_user(current_user, hospital_id)
+    scope_all, scoped_hospital_id, nation_id = _scope_for_user(current_user, hospital_id)
 
     if db.bind and db.bind.dialect.name == "postgresql":
         db.execute(text("SET LOCAL statement_timeout = '5s'"))
@@ -470,7 +476,7 @@ def execute_generated_sql(
 
     result = db.execute(
         text(_scoped_sql(safe_sql)),
-        {"scope_all": scope_all, "hospital_id": scoped_hospital_id},
+        {"scope_all": scope_all, "hospital_id": scoped_hospital_id, "nation_id": nation_id},
     )
     rows = [dict(row._mapping) for row in result.fetchmany(100)]
     if db.bind and db.bind.dialect.name == "postgresql":
