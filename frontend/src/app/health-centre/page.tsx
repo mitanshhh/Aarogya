@@ -275,6 +275,22 @@ export default function HealthCentreManagement() {
     fetchFilterOptions();
   }, []);
 
+  const onRowSelect = useCallback((c: HealthCentre) => {
+    setSelectedCentre(c);
+    setIsViewOpen(true);
+  }, []);
+
+  const onRowEdit = useCallback((c: HealthCentre) => {
+    setSelectedCentre(c);
+    setEditFormData(c);
+    setIsEditOpen(true);
+  }, []);
+
+  const onRowDelete = useCallback((c: HealthCentre) => {
+    setSelectedCentre(c);
+    setIsDeleteOpen(true);
+  }, []);
+
   // Handle register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -591,8 +607,9 @@ export default function HealthCentreManagement() {
                 <SelectItem value="health_score-false">Score (Low-High)</SelectItem>
               </SelectContent>
             </Select>
-
-      </Card>
+          </div>
+        </div>
+      </div>
 
       {/* Data Table Card */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
@@ -633,9 +650,9 @@ export default function HealthCentreManagement() {
                   <HealthCentreRow 
                     key={centre.id} 
                     centre={centre}
-                    onSelect={handleSelect}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onSelect={onRowSelect}
+                    onEdit={onRowEdit}
+                    onDelete={onRowDelete}
                   />
                 ))
               )}
