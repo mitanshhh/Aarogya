@@ -27,7 +27,7 @@ export const ROUTE_PERMISSIONS: Record<string, string[]> = {
 };
 
 export const ROLE_HOME: Record<string, string> = {
-  NATION_ADMIN:    "/federation",
+  NATION_ADMIN:    "/district-admin",
   DISTRICT_ADMIN:  "/district-admin",
   MEDICAL_OFFICER: "/inventory",
   DATA_ENTRY:      "/inventory",

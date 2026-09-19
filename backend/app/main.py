@@ -26,6 +26,24 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+import time
+from fastapi import Request
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    if process_time > 1.0:
+        logger.warning(f"Slow request: {request.method} {request.url.path} took {process_time:.2f}s")
+        
+    return response
 
 setup_rate_limiting(app)
 
@@ -43,6 +61,11 @@ if settings.cors_origins:
 @app.get("/")
 def read_root():
     return {"message": f"Welcome to {settings.PROJECT_NAME}"}
+
+@app.get("/ping")
+def ping():
+    """Endpoint for UptimeRobot to keep the server awake"""
+    return {"status": "ok", "service": "backend"}
 
 app.include_router(auth_routes.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(user_routes.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])

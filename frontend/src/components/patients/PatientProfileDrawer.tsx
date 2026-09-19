@@ -36,12 +36,22 @@ export function PatientProfileDrawer({ patientCode, open, onOpenChange }: Patien
 
   useEffect(() => {
     if (open && patientCode) {
+      // Clear previous state to prevent flashing old data
+      setPatient(null);
+      setTimeline([]);
       fetchPatientDetails();
       fetchPatientTimeline();
       setIsEditing(false);
       setSearchQuery("");
       setActivityFilter("All");
       setExpandedEvents({});
+    } else if (!open) {
+      // Clear state after animation closes
+      const timer = setTimeout(() => {
+        setPatient(null);
+        setTimeline([]);
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [open, patientCode]);
 

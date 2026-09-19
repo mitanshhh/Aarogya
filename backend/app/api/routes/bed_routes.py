@@ -12,6 +12,15 @@ from pydantic import BaseModel
 from typing import Optional
 router = APIRouter()
 
+from app.models.health_centre import HealthCentre
+
+def sync_health_centre_beds(db: Session, hospital_id: int):
+    db.flush()
+    hc = db.query(HealthCentre).filter(HealthCentre.id == hospital_id).first()
+    if hc:
+        hc.total_beds = db.query(Bed).filter(Bed.hospital_id == hospital_id).count()
+        hc.available_beds = db.query(Bed).filter(Bed.hospital_id == hospital_id, Bed.status == 'Available').count()
+
 def log_audit(db: Session, patient_id: int, user_id: int, action: str, details: str = None):
     audit = PatientAuditLog(
         patient_id=patient_id,
@@ -27,7 +36,7 @@ def get_beds(
     db: Session = Depends(get_db),
     hospital_id: int = Depends(resolve_hospital_id),
     status: str = Query(None, description="Filter by status (Available/Occupied/Maintenance)"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(200, ge=1, le=500),
     offset: int = Query(0, ge=0)
 ):
     query = db.query(Bed).filter(Bed.hospital_id == hospital_id)
@@ -56,6 +65,7 @@ def create_bed(
         
     db_bed = Bed(**bed_in.model_dump())
     db.add(db_bed)
+    sync_health_centre_beds(db, db_bed.hospital_id)
     db.commit()
     db.refresh(db_bed)
     return db_bed
@@ -75,6 +85,7 @@ def update_bed(
     for key, value in bed_in.model_dump(exclude_unset=True).items():
         setattr(bed, key, value)
         
+    sync_health_centre_beds(db, bed.hospital_id)
     db.commit()
     db.refresh(bed)
     return bed
@@ -192,6 +203,7 @@ def admit_patient(
     
     action_text = "Reserved" if payload.action == "Reserve" else "Admitted to"
     log_audit(db, patient_record.id, current_user.id, "BED_ALLOCATED", f"{action_text} bed {bed.bed_number}")
+    sync_health_centre_beds(db, bed.hospital_id)
     db.commit()
     db.refresh(bed)
     return bed
@@ -222,6 +234,7 @@ def discharge_patient(
         patient.discharged_at = datetime.now(timezone.utc)
         log_audit(db, patient.id, current_user.id, "BED_RELEASED", "Discharged patient")
     
+    sync_health_centre_beds(db, bed.hospital_id)
     db.commit()
     
     return {"message": "Patient discharged successfully"}
@@ -242,6 +255,7 @@ def change_bed_status(
         raise HTTPException(status_code=404, detail="Bed not found")
         
     bed.status = payload.status
+    sync_health_centre_beds(db, bed.hospital_id)
     db.commit()
     db.refresh(bed)
     return bed

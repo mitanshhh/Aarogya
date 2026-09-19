@@ -65,6 +65,7 @@ const COLUMNS: Record<string, string[]> = {
 
 const CHATBOT_ALLOWED_ROLES = new Set([
   "DISTRICT_ADMIN",
+  "NATION_ADMIN",
   "RECEPTIONIST",
   "DOCTOR",
   "MEDICAL_OFFICER",

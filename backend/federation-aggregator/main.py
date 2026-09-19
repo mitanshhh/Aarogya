@@ -17,6 +17,9 @@ from app.models.federation import AggregatorLocalUpdate, AggregatorGlobalModel
 
 app = FastAPI(title="BRICS Federated Learning Aggregator")
 
+IN_MEMORY_CONTRIBUTORS: Dict[str, set] = {}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,6 +36,11 @@ class ModelUpdate(BaseModel):
     coef: List[float]
     intercept: float
     mae: float
+
+@app.get("/ping")
+def ping():
+    """Endpoint for UptimeRobot to keep the aggregator awake"""
+    return {"status": "ok", "service": "aggregator"}
 
 @app.post("/push-model")
 def push_model(update: ModelUpdate):
@@ -62,6 +70,10 @@ def push_model(update: ModelUpdate):
             local.mae = update.mae
             
         db.commit()
+        
+        if update.category not in IN_MEMORY_CONTRIBUTORS:
+            IN_MEMORY_CONTRIBUTORS[update.category] = set()
+        IN_MEMORY_CONTRIBUTORS[update.category].add(f"{update.nation_name} ({update.phc_name})")
         
         # Trigger FedAvg
         _run_fedavg(update.category, db)
@@ -94,18 +106,21 @@ def get_status():
     """Returns aggregator status for the dashboard"""
     db = SessionLocal()
     try:
-        categories_updates = db.query(AggregatorLocalUpdate.category).distinct().all()
         categories_global = db.query(AggregatorGlobalModel.category).distinct().all()
-        all_categories = set([c[0] for c in categories_updates] + [c[0] for c in categories_global])
+        categories_local = db.query(AggregatorLocalUpdate.category).distinct().all()
+        all_categories = set([c[0] for c in categories_global] + [c[0] for c in categories_local])
         
         stats = []
+        total_active_nations = set()
+        
         for category in all_categories:
             updates = db.query(AggregatorLocalUpdate).filter_by(category=category).all()
-            nations_contributed = len(updates)
-            
             contributors = []
             for u in updates:
                 contributors.append(f"{u.nation_name} ({u.phc_name})")
+                total_active_nations.add(u.nation_name)
+                
+            nations_contributed = len(set(u.nation_name for u in updates))
                 
             global_model = db.query(AggregatorGlobalModel).filter_by(category=category).first()
             version = global_model.version if global_model else 0
@@ -117,8 +132,7 @@ def get_status():
                 "global_model_version": version
             })
             
-        total_nations_active = db.query(AggregatorLocalUpdate.nation_id).distinct().count()
-        return {"categories": stats, "total_nations_active": total_nations_active}
+        return {"categories": stats, "total_nations_active": len(total_active_nations)}
     finally:
         db.close()
 

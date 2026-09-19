@@ -21,8 +21,9 @@ def get_map_data(
     current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
 ):
     query = db.query(HealthCentre)
-    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
-        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    user_nation_id = getattr(current_user, "nation_id", None) or (current_user.hospital.nation_id if current_user.hospital else None)
+    if current_user.role in [UserRole.NATION_ADMIN, UserRole.DISTRICT_ADMIN] and user_nation_id:
+        query = query.filter(HealthCentre.nation_id == user_nation_id)
     centres = query.all()
     return [
         {
@@ -38,83 +39,6 @@ def get_map_data(
         for c in centres
     ]
 
-import time
-
-_OVERVIEW_CACHE = {"timestamp": 0.0, "data": None}
-_OVERVIEW_CACHE_TTL = 15.0
-
-@router.get("/overview")
-def get_district_overview(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
-):
-    now = time.time()
-    if _OVERVIEW_CACHE["data"] and (now - _OVERVIEW_CACHE["timestamp"] < _OVERVIEW_CACHE_TTL):
-        return _OVERVIEW_CACHE["data"]
-
-    from app.models.bed import Bed
-    from app.models.inventory import InventoryItem
-    from app.models.attendance import AttendanceRecord, DailyQRSession
-    from app.services.health_score import calculate_batch_health_scores
-    from datetime import datetime
-    
-    phcs_query = db.query(HealthCentre).filter(HealthCentre.type == "PHC")
-    chcs_query = db.query(HealthCentre).filter(HealthCentre.type == "CHC")
-    beds_query = db.query(Bed).join(HealthCentre, Bed.hospital_id == HealthCentre.id)
-    items_query = db.query(InventoryItem).join(HealthCentre, InventoryItem.hospital_id == HealthCentre.id)
-    all_centres_query = db.query(HealthCentre)
-    docs_query = db.query(User).filter(User.role == UserRole.DOCTOR).outerjoin(HealthCentre, User.hospital_id == HealthCentre.id)
-    
-    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
-        phcs_query = phcs_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        chcs_query = chcs_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        beds_query = beds_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        items_query = items_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        all_centres_query = all_centres_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        docs_query = docs_query.filter(HealthCentre.nation_id == current_user.nation_id)
-    
-    phcs = phcs_query.count()
-    chcs = chcs_query.count()
-    
-    # Bed Occupancy
-    total_beds = beds_query.count()
-    occupied_beds = beds_query.filter(Bed.status == "Occupied").count()
-    bed_occupancy_rate = round((occupied_beds / total_beds * 100), 1) if total_beds > 0 else 0
-    
-    # Medicine alerts: items where quantity is at or below threshold
-    medicine_alerts = items_query.filter(InventoryItem.quantity <= InventoryItem.min_threshold).count()
-    
-    # Critical centres: status == 'Critical' or health_score < 50 or 0 available beds
-    all_centres = all_centres_query.all()
-    scores = calculate_batch_health_scores(db, [c.id for c in all_centres])
-    critical_centres = 0
-    for c in all_centres:
-        live_score = scores.get(c.id, 0.0)
-        if c.status == "Critical" or live_score < 50 or (c.available_beds == 0 and c.total_beds > 0):
-            critical_centres += 1
-    
-    # Doctor presence rate (today)
-    from sqlalchemy import func
-    today = datetime.now().date()
-    present_docs_query = db.query(func.count(func.distinct(AttendanceRecord.user_id))).join(
-        DailyQRSession, AttendanceRecord.session_id == DailyQRSession.id
-    ).join(
-        User, AttendanceRecord.user_id == User.id
-    ).outerjoin(
-        HealthCentre, User.hospital_id == HealthCentre.id
-    ).filter(
-        DailyQRSession.date == today,
-        AttendanceRecord.status.in_(["PRESENT", "LATE"])
-    )
-    
-    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
-        present_docs_query = present_docs_query.filter(HealthCentre.nation_id == current_user.nation_id)
-        
-    present_docs = present_docs_query.scalar() or 0
-    
-    total_docs = docs_query.count()
-    doctor_presence_rate = round((present_docs / total_docs * 100), 1) if total_docs > 0 else 0
-    
     result = {
         "total_phcs": phcs,
         "total_chcs": chcs,
@@ -123,8 +47,6 @@ def get_district_overview(
         "medicine_alerts": medicine_alerts,
         "critical_centres": critical_centres,
     }
-    _OVERVIEW_CACHE["data"] = result
-    _OVERVIEW_CACHE["timestamp"] = now
     return result
 
 
@@ -134,8 +56,9 @@ def get_all_requests(
     current_user: User = Depends(require_role([UserRole.DISTRICT_ADMIN, UserRole.DEVELOPER]))
 ):
     query = db.query(ResourceRequest).join(HealthCentre, ResourceRequest.requesting_phc_id == HealthCentre.id)
-    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
-        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    user_nation_id = getattr(current_user, "nation_id", None) or (current_user.hospital.nation_id if current_user.hospital else None)
+    if current_user.role in [UserRole.NATION_ADMIN, UserRole.DISTRICT_ADMIN] and user_nation_id:
+        query = query.filter(HealthCentre.nation_id == user_nation_id)
     return query.all()
 
 @router.post("/resource-request", response_model=ResourceRequestResponse)
@@ -379,8 +302,9 @@ def search_patients_globally(
     
     query = db.query(Patient).join(HealthCentre, Patient.hospital_id == HealthCentre.id)
     
-    if current_user.role == UserRole.NATION_ADMIN and current_user.nation_id:
-        query = query.filter(HealthCentre.nation_id == current_user.nation_id)
+    user_nation_id = getattr(current_user, "nation_id", None) or (current_user.hospital.nation_id if current_user.hospital else None)
+    if current_user.role in [UserRole.NATION_ADMIN, UserRole.DISTRICT_ADMIN] and user_nation_id:
+        query = query.filter(HealthCentre.nation_id == user_nation_id)
         
     if q and q.strip():
         query = query.filter(

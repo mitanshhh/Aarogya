@@ -14,38 +14,6 @@ from app.core.rate_limit import limiter
 
 router = APIRouter()
 
-# Simple in-memory brute force protection
-FAILED_LOGIN_ATTEMPTS = {}
-LOCKOUT_THRESHOLD = 5
-LOCKOUT_DURATION = timedelta(minutes=15)
-
-def check_brute_force(ip: str):
-    record = FAILED_LOGIN_ATTEMPTS.get(ip)
-    if record:
-        attempts, lock_time = record
-        if lock_time and datetime.now(timezone.utc) < lock_time:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many failed attempts. Try again later."
-            )
-        elif lock_time and datetime.now(timezone.utc) >= lock_time:
-            # Lockout expired
-            FAILED_LOGIN_ATTEMPTS.pop(ip, None)
-
-def register_failed_attempt(ip: str):
-    record = FAILED_LOGIN_ATTEMPTS.get(ip)
-    if record:
-        attempts, lock_time = record
-        attempts += 1
-        if attempts >= LOCKOUT_THRESHOLD:
-            lock_time = datetime.now(timezone.utc) + LOCKOUT_DURATION
-        FAILED_LOGIN_ATTEMPTS[ip] = (attempts, lock_time)
-    else:
-        FAILED_LOGIN_ATTEMPTS[ip] = (1, None)
-
-def reset_failed_attempts(ip: str):
-    FAILED_LOGIN_ATTEMPTS.pop(ip, None)
-
 @router.post("/login", response_model=Token)
 @limiter.limit("5/minute")
 def login(
@@ -54,21 +22,17 @@ def login(
     db: Session = Depends(get_db)
 ):
     ip = request.client.host
-    check_brute_force(ip)
 
     clean_username = form_data.username.strip().lower()
     user = db.query(User).filter(
         or_(func.lower(User.username) == clean_username, func.lower(User.email) == clean_username)
     ).first()
     if not user or not verify_password(form_data.password.strip(), user.hashed_password):
-        register_failed_attempt(ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    reset_failed_attempts(ip)
 
     # 15 mins for access token
     access_token_expires = timedelta(minutes=15)

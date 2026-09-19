@@ -6,7 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_HOME } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Hospital, User, Lock } from "lucide-react";
+import { Hospital, User, Lock, ArrowRight, Shield } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,13 +15,12 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (user: string, pass: string) => {
     setIsLoading(true);
     try {
-      await login(username, password);
-      // After login, user is set in context — get role from localStorage
+      await login(user, pass);
       const role = localStorage.getItem("role") || "MEDICAL_OFFICER";
       const home = ROLE_HOME[role] || "/inventory";
       toast.success("Login successful!");
@@ -30,6 +30,17 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await doLogin(username, password);
+  };
+
+  const quickLogin = (user: string) => {
+    setUsername(user);
+    setPassword("password123");
+    doLogin(user, "password123");
   };
 
   return (
@@ -43,7 +54,8 @@ export default function LoginPage() {
           backgroundPosition: "center",
         }}
       />
-      <div className="absolute inset-0 z-0 bg-background/80 backdrop-blur-sm"></div>
+      {/* White Overlay Div */}
+      <div className="absolute inset-0 z-0 bg-white/80 dark:bg-background/80 backdrop-blur-sm"></div>
 
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-primary rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob"></div>
@@ -51,7 +63,12 @@ export default function LoginPage() {
         <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
 
-      <div className="m-auto w-full max-w-lg relative z-10 flex flex-col">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="m-auto w-full max-w-lg relative z-10 flex flex-col"
+      >
         <div className="flex justify-center">
           <div className="h-20 w-20 bg-background rounded-2xl flex items-center justify-center border border-primary/20 shadow-sm backdrop-blur-sm overflow-hidden p-2">
             <img src="./logo.png" alt="Aarogya Logo" className="w-full h-full object-contain" />
@@ -66,6 +83,7 @@ export default function LoginPage() {
 
         <div className="mt-8 w-full">
           <div className="bg-card/60 backdrop-blur-xl py-8 px-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:rounded-2xl sm:px-10 border border-border/50">
+            
             <form className="space-y-6" onSubmit={handleLogin}>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Username</label>
@@ -117,30 +135,83 @@ export default function LoginPage() {
               </div>
             </form>
 
-            <div className="mt-6 bg-background/60 p-4 rounded-xl border border-border/50 text-sm shadow-sm backdrop-blur-sm">
-              <p className="font-semibold text-foreground/90 mb-3 text-center flex items-center justify-center gap-2">
-                <Hospital className="w-4 h-4" /> Demo Accounts
-              </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground text-xs sm:text-sm">
-                <div className="text-right font-medium">District Admin:</div>
-                <div className="font-mono text-foreground">admin</div>
-
-                <div className="text-right font-medium">Medical Officer:</div>
-                <div className="font-mono text-foreground">mo_alpha</div>
-
-                <div className="text-right font-medium">Receptionist:</div>
-                <div className="font-mono text-foreground">recp_alpha</div>
-
-                <div className="text-right font-medium">Doctor:</div>
-                <div className="font-mono text-foreground">doctor_alpha</div>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
               </div>
-              <div className="mt-4 pt-3 border-t border-border/50 text-center text-xs text-muted-foreground">
-                Password: <span className="font-mono text-foreground bg-background/80 px-2 py-1 rounded shadow-sm">password123</span>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-card/60 px-2 text-muted-foreground backdrop-blur-xl">Or quick login</span>
               </div>
             </div>
+
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  {isAdminMode ? "Admin Login" : "Staff Login"}
+                </p>
+                <div className="h-px bg-border/60 w-1/2 mx-auto"></div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {!isAdminMode ? (
+                  <motion.div 
+                    key="staff"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="flex flex-col gap-3"
+                  >
+                    <Button onClick={() => quickLogin("mo_alpha")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium">
+                      <div className="flex items-center gap-2"><User className="w-4 h-4 text-blue-500" /> Medical Officer Alpha</div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                    <Button onClick={() => quickLogin("recp_alpha")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium">
+                      <div className="flex items-center gap-2"><User className="w-4 h-4 text-purple-500" /> Receptionist Alpha</div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                    <Button onClick={() => quickLogin("doctor_alpha")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium">
+                      <div className="flex items-center gap-2"><User className="w-4 h-4 text-green-500" /> Doctor Alpha</div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="admin"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex flex-col gap-3"
+                  >
+                    <Button onClick={() => quickLogin("admin")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium border-primary/20 bg-primary/5 hover:bg-primary/10">
+                      <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> District Administrator</div>
+                      <ArrowRight className="w-4 h-4 text-primary" />
+                    </Button>
+                    <Button onClick={() => quickLogin("admin_ind")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10">
+                      <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-orange-500" /> India Administrator</div>
+                      <ArrowRight className="w-4 h-4 text-orange-500" />
+                    </Button>
+                    <Button onClick={() => quickLogin("admin_bra")} disabled={isLoading} variant="outline" className="w-full justify-between h-12 text-base font-medium border-green-500/20 bg-green-500/5 hover:bg-green-500/10">
+                      <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-green-500" /> Brazil Administrator</div>
+                      <ArrowRight className="w-4 h-4 text-green-500" />
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="mt-8 pt-6 border-t border-border flex justify-center w-full">
+                <Button 
+                  variant="default" 
+                  onClick={() => setIsAdminMode(!isAdminMode)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors py-6 text-base"
+                >
+                  {isAdminMode ? "Switch to Staff Login" : "Switch to Admin"}
+                </Button>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

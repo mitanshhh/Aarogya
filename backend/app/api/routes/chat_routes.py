@@ -19,6 +19,7 @@ router = APIRouter()
 
 CHATBOT_ALLOWED_ROLES = {
     UserRole.DISTRICT_ADMIN,
+    UserRole.NATION_ADMIN,
     UserRole.RECEPTIONIST,
     UserRole.DOCTOR,
     UserRole.MEDICAL_OFFICER,
@@ -27,8 +28,10 @@ CHATBOT_ALLOWED_ROLES = {
 
 
 def _ensure_chatbot_access(current_user: User) -> None:
-    if current_user.role not in CHATBOT_ALLOWED_ROLES:
-        raise HTTPException(status_code=403, detail="Chatbot access is not enabled for your role.")
+    allowed_str = {r.value if hasattr(r, 'value') else str(r) for r in CHATBOT_ALLOWED_ROLES}
+    user_role_str = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if user_role_str not in allowed_str:
+        raise HTTPException(status_code=403, detail=f"Chatbot access is not enabled for your role. (Got: {user_role_str})")
 
 
 def _effective_chat_hospital_id(current_user: User, requested_hospital_id: int | None, scope_all: bool) -> int | None:

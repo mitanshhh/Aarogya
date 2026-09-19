@@ -4,6 +4,8 @@ from sqlalchemy import text
 from typing import List, Dict, Any
 from app.db.database import get_db
 from app.models.inventory import ForecastCache
+from app.core.rate_limit import limiter
+from fastapi import Request
 import joblib
 import os
 import pandas as pd
@@ -184,7 +186,9 @@ def get_demand_forecast(
     return {"forecasts": results}
 
 @router.post("/demand-forecast/{hospital_id}/trigger")
+@limiter.limit("10/minute")
 def trigger_demand_forecast(
+    request: Request,
     hospital_id: int, 
     db: Session = Depends(get_db)
 ):

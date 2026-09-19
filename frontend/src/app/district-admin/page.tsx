@@ -11,10 +11,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import dynamic from 'next/dynamic';
 import { PatientProfileDrawer } from '@/components/patients/PatientProfileDrawer';
-
-
-
+import { motion } from 'framer-motion';
 export default function DistrictAdminDashboard() {
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [overview, setOverview] = useState<any>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [mapData, setMapData] = useState<any[]>([]);
@@ -60,7 +59,8 @@ export default function DistrictAdminDashboard() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (background = false) => {
+    if (!background) setIsInitialLoad(true);
     try {
       const [resOverview, resReq, resMap] = await Promise.all([
         apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/district/overview`),
@@ -74,13 +74,15 @@ export default function DistrictAdminDashboard() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to load district data");
+    } finally {
+      if (!background) setIsInitialLoad(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
     handleSearchPatients(0);
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(() => fetchData(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -230,6 +232,30 @@ export default function DistrictAdminDashboard() {
     return "bg-muted/30 border-border hover:border-primary/50 hover:bg-muted/50";
   };
 
+  const handleExportReport = async () => {
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/phc/export-report`, {
+        method: 'GET'
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'HealthCentres_Report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        toast.error("Failed to export report");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Network error while exporting report");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-end mb-2">
@@ -241,49 +267,69 @@ export default function DistrictAdminDashboard() {
           <Button variant="secondary" className="flex items-center gap-2 cursor-pointer" onClick={() => setIsRegisterOpen(true)}>
             <Building2 className="w-4 h-4" /> Register New PHC
           </Button>
-          <Button className="flex items-center gap-2 cursor-pointer">
+          <Button className="flex items-center gap-2 cursor-pointer" onClick={handleExportReport}>
             <Download className="w-4 h-4" /> Export Report
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+        }}
+        className="grid grid-cols-12 gap-6"
+      >
         {/* KPI Grid */}
-        <div className="col-span-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="col-span-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
+        >
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary"><Hospital className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total PHCs</h3></div>
-            <div className="text-2xl font-bold text-foreground">{overview?.total_phcs || 0}</div>
+            <div className="text-2xl font-bold text-foreground">{isInitialLoad ? "..." : (overview?.total_phcs || 0)}</div>
           </CardContent></Card>
           
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary"><Building2 className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total CHCs</h3></div>
-            <div className="text-2xl font-bold text-foreground">{overview?.total_chcs || 0}</div>
+            <div className="text-2xl font-bold text-foreground">{isInitialLoad ? "..." : (overview?.total_chcs || 0)}</div>
           </CardContent></Card>
           
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-green-100 flex items-center justify-center text-green-700"><Stethoscope className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Doctors</h3></div>
-            <div className="text-2xl font-bold text-foreground">{overview?.doctor_presence_rate || 0}%</div>
+            <div className="text-2xl font-bold text-foreground">{isInitialLoad ? "..." : `${overview?.doctor_presence_rate || 0}%`}</div>
           </CardContent></Card>
           
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-secondary flex items-center justify-center text-secondary-foreground"><BedDouble className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Beds</h3></div>
-            <div className="text-2xl font-bold text-foreground">{overview?.bed_occupancy_rate || 0}%</div>
-            <div className="w-full bg-secondary h-1 rounded-full mt-2 overflow-hidden"><div className="bg-primary h-full rounded-full" style={{ width: `${overview?.bed_occupancy_rate || 0}%` }}></div></div>
+            <div className="text-2xl font-bold text-foreground">{isInitialLoad ? "..." : `${overview?.bed_occupancy_rate || 0}%`}</div>
+            {!isInitialLoad && <div className="w-full bg-secondary h-1 rounded-full mt-2 overflow-hidden"><div className="bg-primary h-full rounded-full" style={{ width: `${overview?.bed_occupancy_rate || 0}%` }}></div></div>}
           </CardContent></Card>
 
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-yellow-100 flex items-center justify-center text-yellow-600"><AlertTriangle className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-yellow-600 uppercase tracking-wider">Meds</h3></div>
-            <div className="text-2xl font-bold text-yellow-600">{overview?.medicine_alerts || 0}</div>
+            <div className="text-2xl font-bold text-yellow-600">{isInitialLoad ? "..." : (overview?.medicine_alerts || 0)}</div>
           </CardContent></Card>
 
           <Card className="border-border shadow-none hover:shadow-md transition-shadow"><CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2"><div className="w-8 h-8 rounded bg-red-100 flex items-center justify-center text-red-600"><AlertOctagon className="w-4 h-4" /></div><h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider">Critical</h3></div>
-            <div className="text-2xl font-bold text-red-600">{overview?.critical_centres || 0}</div>
+            <div className="text-2xl font-bold text-red-600">{isInitialLoad ? "..." : (overview?.critical_centres || 0)}</div>
           </CardContent></Card>
-        </div>
+        </motion.div>
 
         {/* Unified Request and Patient Panel */}
-        <div className="col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div 
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          className="col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
           
           {/* Left Column: Resource Requests */}
           <Card className="border-border shadow-sm flex flex-col h-[600px] hover:shadow-md transition-shadow">
@@ -390,8 +436,8 @@ export default function DistrictAdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <Dialog open={!!selectedReq} onOpenChange={() => setSelectedReq(null)}>
         <DialogContent className="sm:max-w-[500px]">
@@ -404,7 +450,7 @@ export default function DistrictAdminDashboard() {
               ) : null}.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
+          <div className="py-2 pr-3 overflow-y-auto max-h-[75vh] custom-scrollbar">
             <div className="bg-muted/30 p-3 rounded-lg border border-border text-sm mb-4">
               <span className="font-semibold text-foreground block mb-1">PHC Notes:</span>
               <span className="text-muted-foreground">{selectedReq?.notes || "No additional notes provided."}</span>
@@ -552,12 +598,12 @@ export default function DistrictAdminDashboard() {
         setIsHistoryOpen(open);
         if (!open) setTimeout(() => setSelectedHistoryReq(null), 300); // clear after animation
       }}>
-        <DialogContent className={`transition-all duration-300 ease-in-out ${selectedHistoryReq ? 'sm:max-w-[750px]' : 'sm:max-w-[400px]'}`}>
+        <DialogContent className={`transition-all duration-300 ease-in-out max-h-[80vh] overflow-hidden flex flex-col ${selectedHistoryReq ? 'sm:max-w-[850px]' : 'sm:max-w-[450px]'}`}>
           <DialogHeader>
             <DialogTitle>Request History</DialogTitle>
             <DialogDescription>Recent approved and rejected resource requests.</DialogDescription>
           </DialogHeader>
-          <div className="flex gap-4 max-h-[500px] overflow-hidden mt-2">
+          <div className="flex gap-4 flex-1 overflow-hidden mt-2">
             {/* Left side: List of history requests */}
             <div className={`flex flex-col gap-3 overflow-y-auto pr-2 transition-all duration-300 ${selectedHistoryReq ? 'w-1/2' : 'w-full'}`}>
               {historyRequests.length === 0 ? (
@@ -579,12 +625,12 @@ export default function DistrictAdminDashboard() {
             </div>
 
             {/* Right side: Detailed View (Slide-in) */}
-            <div className={`overflow-y-auto transition-all duration-300 ease-in-out ${selectedHistoryReq ? 'w-1/2 opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-8'}`}>
+            <div className={`overflow-y-auto pr-3 transition-all duration-300 ease-in-out ${selectedHistoryReq ? 'w-1/2 opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-8'}`}>
               {selectedHistoryReq ? (
-                <div className="flex flex-col gap-4 border-l border-border pl-4 h-full min-w-[400px]">
+                <div className="flex flex-col gap-4 border-l border-border pl-4 h-full w-full">
                   <h4 className="font-bold text-lg border-b border-border pb-2">{selectedHistoryReq.resource_name} Details</h4>
                   
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center pr-2">
                     <span className="text-sm text-muted-foreground">Status</span>
                     <span className={`text-xs font-bold px-2 py-1 rounded border ${selectedHistoryReq.status === 'APPROVED' ? 'text-green-600 bg-green-50 border-green-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
                       {selectedHistoryReq.status}
@@ -610,7 +656,7 @@ export default function DistrictAdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="w-[400px]"></div>
+                <div className="w-full"></div>
               )}
             </div>
           </div>

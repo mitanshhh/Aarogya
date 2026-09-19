@@ -158,5 +158,17 @@ def calculate_batch_health_scores(db: Session, hospital_ids: list[int]) -> dict[
         if critical > 0:
             scores[hid] -= min(10, critical * 2)
 
-    return {hid: max(0.0, min(100.0, score)) for hid, score in scores.items()}
+    final_scores = {hid: max(0.0, min(100.0, score)) for hid, score in scores.items()}
+    
+    # Persist the calculated scores back to the DB to keep the column eventually consistent
+    try:
+        from app.models.health_centre import HealthCentre
+        from sqlalchemy import update
+        for hid, score in final_scores.items():
+            db.execute(update(HealthCentre).where(HealthCentre.id == hid).values(health_score=int(score)))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        
+    return final_scores
 

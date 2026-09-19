@@ -1,7 +1,7 @@
 "use client";
 import { apiFetch } from '@/lib/api';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Plus, MoreVertical, Loader2, ChevronLeft, ChevronRight, Search,
@@ -71,6 +71,87 @@ interface HealthCentre {
   email_detail?: string | null;
 }
 
+const getStatusBadge = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'active':
+    case 'optimal':
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>;
+    case 'critical':
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Critical</Badge>;
+    case 'maintenance':
+    case 'review':
+    case 'monitor':
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{status}</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+};
+
+const getScoreVisual = (score: number) => {
+  let color = 'bg-green-500';
+  if (score < 40) color = 'bg-red-500';
+  else if (score < 70) color = 'bg-orange-500';
+  else if (score < 90) color = 'bg-yellow-500';
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="font-semibold w-8">{score}</span>
+      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full ${color}`} style={{ width: `${score}%` }}></div>
+      </div>
+    </div>
+  );
+};
+
+const HealthCentreRow = memo(({ centre, onSelect, onEdit, onDelete }: { centre: HealthCentre, onSelect: (c: HealthCentre) => void, onEdit: (c: HealthCentre) => void, onDelete: (c: HealthCentre) => void }) => {
+  return (
+    <TableRow 
+      className="hover:bg-muted/40 transition-colors cursor-pointer group"
+      onClick={() => onSelect(centre)}
+    >
+      <TableCell>
+        <div className="font-medium text-foreground text-base group-hover:text-primary transition-colors">{centre.name}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{centre.type}</div>
+      </TableCell>
+      <TableCell>
+        {getScoreVisual(centre.health_score)}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">{centre.location}</TableCell>
+      <TableCell className="text-sm">{centre.medical_officer}</TableCell>
+      <TableCell>
+        {getStatusBadge(centre.status)}
+      </TableCell>
+      <TableCell onClick={e => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted focus:outline-none transition-all">
+            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem 
+              className="cursor-pointer"
+              onClick={() => onSelect(centre)}
+            >
+              View Centre
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="cursor-pointer"
+              onClick={() => onEdit(centre)}
+            >
+              Edit Centre
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+              onClick={() => onDelete(centre)}
+            >
+              Deactivate Centre
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+});
+
 export default function HealthCentreManagement() {
   const [centres, setCentres] = useState<HealthCentre[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +162,7 @@ export default function HealthCentreManagement() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
   
   // Selected centre for view/edit
   const [selectedCentre, setSelectedCentre] = useState<HealthCentre | null>(null);
@@ -301,37 +383,6 @@ export default function HealthCentreManagement() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active':
-      case 'optimal':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>;
-      case 'critical':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Critical</Badge>;
-      case 'maintenance':
-      case 'review':
-      case 'monitor':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{status}</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getScoreVisual = (score: number) => {
-    let color = 'bg-green-500';
-    if (score < 40) color = 'bg-red-500';
-    else if (score < 70) color = 'bg-orange-500';
-    else if (score < 90) color = 'bg-yellow-500';
-
-    return (
-      <div className="flex items-center gap-3">
-        <span className="font-semibold w-8">{score}</span>
-        <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-          <div className={`h-full ${color}`} style={{ width: `${score}%` }}></div>
-        </div>
-      </div>
-    );
-  };
 
   const totalPages = Math.ceil(totalCount / rowsPerPage);
 
@@ -540,9 +591,8 @@ export default function HealthCentreManagement() {
                 <SelectItem value="health_score-false">Score (Low-High)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
-      </div>
+
+      </Card>
 
       {/* Data Table Card */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
@@ -580,64 +630,13 @@ export default function HealthCentreManagement() {
                 </TableRow>
               ) : (
                 centres.map(centre => (
-                  <TableRow 
+                  <HealthCentreRow 
                     key={centre.id} 
-                    className="hover:bg-muted/40 transition-colors cursor-pointer group"
-                    onClick={() => {
-                      setSelectedCentre(centre);
-                      setIsViewOpen(true);
-                    }}
-                  >
-                    <TableCell>
-                      <div className="font-medium text-foreground text-base group-hover:text-primary transition-colors">{centre.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{centre.type}</div>
-                    </TableCell>
-                    <TableCell>
-                      {getScoreVisual(centre.health_score)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{centre.location}</TableCell>
-                    <TableCell className="text-sm">{centre.medical_officer}</TableCell>
-                    <TableCell>
-                      {getStatusBadge(centre.status)}
-                    </TableCell>
-                    <TableCell onClick={e => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted focus:outline-none transition-all">
-                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem 
-                            className="cursor-pointer"
-                            onClick={() => {
-                              setSelectedCentre(centre);
-                              setIsViewOpen(true);
-                            }}
-                          >
-                            View Centre
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="cursor-pointer"
-                            onClick={() => {
-                              setSelectedCentre(centre);
-                              setEditFormData(centre);
-                              setIsEditOpen(true);
-                            }}
-                          >
-                            Edit Centre
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
-                            onClick={() => {
-                              setSelectedCentre(centre);
-                              setIsDeleteOpen(true);
-                            }}
-                          >
-                            Deactivate Centre
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                    centre={centre}
+                    onSelect={handleSelect}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ))
               )}
             </TableBody>
@@ -1006,7 +1005,7 @@ export default function HealthCentreManagement() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+      <Dialog open={isDeleteOpen} onOpenChange={(open) => { setIsDeleteOpen(open); if (!open) setDeleteInput(""); }}>
         <DialogContent className="sm:max-w-[425px] rounded-xl border-border bg-card/95 backdrop-blur-md shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete Health Centre</DialogTitle>
@@ -1014,9 +1013,19 @@ export default function HealthCentreManagement() {
               Are you sure you want to delete <strong>{selectedCentre?.name}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Please type <strong>{selectedCentre?.name}</strong> to confirm:</label>
+              <Input 
+                value={deleteInput} 
+                onChange={(e) => setDeleteInput(e.target.value)} 
+                placeholder="Type name here..." 
+              />
+            </div>
+          </div>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
-            <Button type="button" variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button type="button" variant="outline" onClick={() => { setIsDeleteOpen(false); setDeleteInput(""); }}>Cancel</Button>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleteInput !== selectedCentre?.name}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

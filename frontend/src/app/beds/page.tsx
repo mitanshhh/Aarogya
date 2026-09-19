@@ -49,19 +49,38 @@ export default function BedManagement() {
 
   const fetchBeds = async () => {
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/beds`);
-      if (!res.ok) throw new Error("Failed to fetch beds");
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/beds?limit=100`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const detail = errBody?.detail;
+        const msg = Array.isArray(detail) ? JSON.stringify(detail) : (detail || `HTTP ${res.status}`);
+        console.error("Failed to fetch beds:", msg);
+        if (res.status === 401) {
+          toast.error("Session expired. Please log in again.");
+        } else if (res.status === 403) {
+          toast.error("You are not assigned to a health centre. Contact your admin.");
+        } else {
+          toast.error(`Could not load beds: ${msg}`);
+        }
+        return;
+      }
       const data = await res.json();
       setBeds(data.data || []);
     } catch (error) {
       console.error("Could not fetch beds data.", error);
+      toast.error("Could not connect to the server. Please refresh.");
     }
   };
 
   const fetchAnalytics = async () => {
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/beds/analytics`);
-      if (!res.ok) throw new Error("Failed to fetch analytics");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const detail = errBody?.detail;
+        console.error("Failed to fetch analytics:", Array.isArray(detail) ? JSON.stringify(detail) : detail || res.status);
+        return;
+      }
       const data = await res.json();
       setAnalytics(data);
     } catch (error) {

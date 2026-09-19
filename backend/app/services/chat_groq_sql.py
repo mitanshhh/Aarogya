@@ -254,7 +254,7 @@ def _current_health_centre(db: Session, hospital_id: Optional[int]) -> Optional[
 
 
 def _scope_context(db: Session, message: str, current_user: User, hospital_id: Optional[int]) -> str:
-    if current_user.role == UserRole.DISTRICT_ADMIN:
+    if current_user.role in [UserRole.DISTRICT_ADMIN, UserRole.NATION_ADMIN]:
         matches = _health_centre_matches(db, message)
         match_text = json.dumps(matches, default=str) if matches else "[]"
         selected_centre = _current_health_centre(db, hospital_id)
