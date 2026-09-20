@@ -62,7 +62,7 @@ if settings.cors_origins:
 def read_root():
     return {"message": f"Welcome to {settings.PROJECT_NAME}"}
 
-@app.get("/ping")
+@app.api_route("/ping", methods=["GET", "HEAD"])
 def ping():
     """Endpoint for UptimeRobot to keep the server awake"""
     return {"status": "ok", "service": "backend"}
