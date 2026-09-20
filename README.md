@@ -44,13 +44,14 @@ def get_analytics_insights(analytics_data: dict, period_type: str) -> str:
 
 ---
 
-## 🌍 Multi-Nation Federation Layer (Global Isolation)
+## 🌍 BRICS Federated Health Resilience Platform
 
-Aarogya supports multi-nation deployments (federation) where multiple countries can operate on the same unified platform without data overlap.
+Aarogya supports multi-nation deployments through its BRICS Federation Layer, enabling countries to operate on a unified platform while maintaining strict data sovereignty.
 
-- **Data Scoping:** Core models (`HealthCentre`, `User`) are mapped to a `nation_id`.
-- **NLP Strict Constraints:** The Groq SQL chatbot injects mandatory `nation_id` filters into all Virtual Tables/CTEs, ensuring that even a `NATION_ADMIN` can only query data belonging to their own country.
-- **Cross-Border Prevention:** The AI Redistribution Engine and Manual Resource Requests strictly filter donor PHC candidates to ensure they reside in the same nation as the requesting PHC.
+- **Federated Learning (FedAvg) Aggregator:** A standalone FastAPI aggregator (`backend/federation-aggregator/main.py`) collects local ML model updates (coefficients, intercepts) from participating BRICS nations without ever touching their raw patient or inventory data. It performs Federated Averaging (FedAvg) to build a robust global model.
+- **Global Resilience Dashboard:** The `FederationDashboard` provides real-time visibility into active nodes, categories trained, and local vs. global model performance (MAE) improvements.
+- **Data Scoping & Strict Constraints:** Core models are scoped by `nation_id`. The Groq SQL chatbot injects mandatory `nation_id` filters into all Virtual Tables, ensuring that even a `NATION_ADMIN` can only query data belonging to their own country.
+- **Cross-Border Prevention:** The AI Redistribution Engine and Manual Resource Requests strictly filter donor PHC candidates to ensure they reside in the same nation, preventing illegal cross-border medical transfers.
 
 ---
 
