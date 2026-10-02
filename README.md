@@ -10,14 +10,6 @@
 
 Aarogya deeply integrates multiple Google technologies to deliver intelligent, scalable healthcare management:
 
-| Technology | Usage |
-|---|---|
-| **Google Gemini AI** (`gemini-2.5-flash`) | Powers inventory insights engine, analytics AI summarization, and NLP chat intent processing |
-| **Google Cloud Translate API** | Translates medical prescriptions and patient instructions into regional languages |
-| **Google Maps API** (`@react-google-maps/api`) | Interactive geospatial maps of all PHCs/CHCs across the district |
-| **Google Calendar API** | Integrated into the Doctor dashboard for scheduling and attendance cross-referencing |
-| **Gmail SMTP** | Automated onboarding emails sent to newly registered Health Centre admins |
-
 ### Gemini AI in Action
 
 The backend uses `google-genai` SDK with Gemini 2.5 Flash for three distinct AI pipelines:
