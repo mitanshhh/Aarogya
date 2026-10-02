@@ -67,3 +67,9 @@ frontend/coverage/
 # Old root-level federation-aggregator (now in backend/)
 # =============================================================
 /federation-aggregator/
+
+Others/
+
+node_modules/
+
+assets/
