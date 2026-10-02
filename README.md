@@ -6,9 +6,6 @@
 
 ---
 
-## 🌟 Google Technologies at the Core
-
-Aarogya deeply integrates multiple Google technologies to deliver intelligent, scalable healthcare management:
 
 ### Gemini AI in Action
 
@@ -83,7 +80,7 @@ Aarogya supports multi-nation deployments through its BRICS Federation Layer, en
 ## 🗂️ Repository Structure
 
 ```
-Codeamble Aarogya/
+Aarogya/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
